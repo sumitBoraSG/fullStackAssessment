@@ -1,0 +1,17 @@
+name: Semgrep-Build-Secrets-Lint Scan
+
+on:
+  pull_request: {}
+  push:
+    branches: ["master", "main"]
+  workflow_dispatch:
+
+jobs:
+  call-workflow:
+    uses: studiographene/studiographene-nodejs-scans/.github/workflows/ci.yml@master
+
+    with:
+      project_name: CI-SCANS
+      exclude-jobs: build-check
+
+    permissions: write-all

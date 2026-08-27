@@ -1,0 +1,40 @@
+version: "3.2"
+
+services:
+  ts-bp:
+    build:
+      context: .
+      args:
+        NPM_TOKEN: ${NPM_TOKEN}
+      dockerfile: dev/docker/Dockerfile
+    command: npm run watch
+    ports:
+      - "3001:3001"
+    networks:
+      - ts-bp-net
+    volumes:
+      - .:/var/app/ts-bp-be
+      - /var/app/ts-bp-be/node_modules
+    env_file:
+      - .env # it will overwrite .env file content
+    depends_on:
+      - ts-bp_postgres
+
+  ts-bp_postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_PASSWORD: root
+      POSTGRES_USER: root
+      POSTGRES_DB: ts-bp
+    ports:
+      - "5432:5432"
+    networks:
+      - ts-bp-net
+    volumes:
+      - "ts-bp-postgres-vol:/var/lib/postgres"
+
+networks:
+  ts-bp-net:
+    driver: bridge
+volumes:
+  ts-bp-postgres-vol:
