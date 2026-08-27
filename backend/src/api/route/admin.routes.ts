@@ -30,6 +30,7 @@ class AdminRoute {
   private authorizationMiddleware: AuthorizationMiddleware =
     new AuthorizationMiddleware();
 
+  
   constructor() {
     this.router.post(
       "/invite",

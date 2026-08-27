@@ -1,11 +1,17 @@
 import express from "express";
 
 import { DoctorController } from "@api/controller/doctor.controller";
+import { AppointmentController } from "@api/controller/appointment.controller";
 import {
     createAvailabilitySchema,
     getAvailabilityQuerySchema,
     getDoctorsQuerySchema,
 } from "@api/validator/doctor.validation";
+import {
+    appointmentStatusParamsSchema,
+    doctorAppointmentStatusBodySchema,
+    getDoctorAppointmentsQuerySchema,
+} from "@api/validator/appointment.validation";
 
 import { HttpRequestValidator } from "@middleware/http-request-validator";
 import { AuthMiddleware } from "@middleware/auth.middleware";
@@ -17,6 +23,7 @@ import { UserRole } from "@database/enum/userRole";
 class DoctorRoute {
     public router: express.Router = express.Router();
     private doctorController = new DoctorController();
+    private appointmentController = new AppointmentController();
     private requestValidator = new HttpRequestValidator();
     private authMiddleware = new AuthMiddleware();
     private authorizationMiddleware = new AuthorizationMiddleware();
@@ -39,6 +46,32 @@ class DoctorRoute {
             this.authMiddleware.authenticate,
             this.authorizationMiddleware.authorize(UserRole.DOCTOR),
             this.doctorController.getOwnAvailability,
+        );
+
+        this.router.get(
+            "/appointments",
+            this.requestValidator.validate(
+                "query",
+                getDoctorAppointmentsQuerySchema,
+            ),
+            this.authMiddleware.authenticate,
+            this.authorizationMiddleware.authorize(UserRole.DOCTOR),
+            this.appointmentController.getDoctorAppointments,
+        );
+
+        this.router.patch(
+            "/appointments/:appointmentId/status",
+            this.requestValidator.validate(
+                "params",
+                appointmentStatusParamsSchema,
+            ),
+            this.requestValidator.validate(
+                "body",
+                doctorAppointmentStatusBodySchema,
+            ),
+            this.authMiddleware.authenticate,
+            this.authorizationMiddleware.authorize(UserRole.DOCTOR),
+            this.appointmentController.updateAppointmentStatus,
         );
     }
 }
