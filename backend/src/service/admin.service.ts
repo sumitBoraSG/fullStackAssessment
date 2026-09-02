@@ -8,6 +8,7 @@ import { bulkInviteRowSchema } from "@api/validator/bulkInvite.validation";
 import { InvitationStatus } from "../types/invitationStatus";
 import { AuthRepository } from "@database/repository/auth.repository";
 import { InvitationRepository } from "@database/repository/invitation.repository";
+import { UserInvitation } from "@database/model/UserInvitation";
 
 export class AdminService {
   private authRepository: AuthRepository =
@@ -39,7 +40,9 @@ export class AdminService {
       );
     }
 
-    // 2. Check whether there is already a pending invitation
+    // 2. Check whether there is already a pending invitation (fast path —
+    // the partial unique index on (email) below is the actual race-proof
+    // guard; this just avoids an unnecessary insert in the common case)
     const existingInvitation =
       await this.invitationRepository.findPendingInvitation(
         trimmedEmail,
@@ -69,15 +72,17 @@ export class AdminService {
       Date.now() + 24 * 60 * 60 * 1000,
     );
 
-    // 6. Store invitation
-    const invitation =
-      await this.invitationRepository.createInvitation(
-        trimmedEmail,
-        role,
-        hashedToken,
-        expiresAt,
-        adminId,
-      );
+    // 6. Store invitation — race-proof via a partial unique index on
+    // (email) covering "not used, not revoked" invitations. If two
+    // concurrent requests both pass step 2, only one insert succeeds; the
+    // other hits a unique violation, handled below.
+    const invitation = await this.createInvitationRaceProof(
+      trimmedEmail,
+      role,
+      hashedToken,
+      expiresAt,
+      adminId,
+    );
 
     // 7. Send invitation email
     try {
@@ -96,7 +101,15 @@ export class AdminService {
           error: (emailError as Error).message,
         },
       });
-      throw emailError;
+
+      // Compensating action: remove the just-created invitation so the
+      // admin can retry POST /admin/invite cleanly instead of being told
+      // "an invitation has already been sent" for one that never delivered.
+      await this.invitationRepository.deleteInvitation(invitation.id);
+
+      throw new createError.InternalServerError(
+        constant.FAILED_TO_SEND_INVITATION,
+      );
     }
 
     logger.info("Invitation created and email sent", {
@@ -115,6 +128,61 @@ export class AdminService {
       role: invitation.role,
       expiresAt: invitation.expiresAt,
     };
+  }
+
+  /**
+   * Inserts a new invitation, tolerating a race against another concurrent
+   * invite for the same email via the idx_user_invitations_active_email
+   * partial unique index. If the conflicting row turns out to be merely
+   * expired (not used/revoked, but past its expiry), it's revoked and the
+   * insert retried once — preserving the existing behavior that an expired
+   * invitation doesn't permanently block re-inviting that email.
+   */
+  private async createInvitationRaceProof(
+    email: string,
+    role: UserRole,
+    hashedToken: string,
+    expiresAt: Date,
+    adminId: number,
+    alreadyRetried = false,
+  ): Promise<UserInvitation> {
+    try {
+      return await this.invitationRepository.createInvitation(
+        email,
+        role,
+        hashedToken,
+        expiresAt,
+        adminId,
+      );
+    } catch (err: any) {
+      if (err?.code !== "23505" || alreadyRetried) {
+        throw err;
+      }
+
+      const conflicting =
+        await this.invitationRepository.findActiveInvitation(email);
+
+      if (conflicting && conflicting.expiresAt <= new Date()) {
+        await this.invitationRepository.revokeInvitation(
+          conflicting.id,
+          adminId,
+        );
+
+        return this.createInvitationRaceProof(
+          email,
+          role,
+          hashedToken,
+          expiresAt,
+          adminId,
+          true,
+        );
+      }
+
+      logger.error("Invite user failed: concurrent invitation already sent", {
+        data: { email, adminId },
+      });
+      throw new createError.Conflict(constant.INVITATION_ALREADY_SENT);
+    }
   }
 
   public async getAllInvitations(
@@ -163,6 +231,20 @@ export class AdminService {
         revokedAt: invitation.revokedAt,
         createdAt: invitation.createdAt,
       };
+    });
+
+    logger.info("Invitations fetched successfully", {
+      data: {
+        count: data.length,
+        total,
+        page,
+        limit,
+        filters: {
+          search: filter.search,
+          status: filter.status,
+          role: filter.role,
+        },
+      },
     });
 
     return {
@@ -255,6 +337,7 @@ export class AdminService {
     adminId: number,
   ) {
     const results = [];
+    const seenEmails = new Set<string>();
 
     for (const row of rows) {
       const email = typeof row.email === "string" ? row.email.trim().toLowerCase() : "";
@@ -276,7 +359,19 @@ export class AdminService {
           status: "FAILED",
           reason: validation.error.details[0]?.message?.replace(/"/g, "") || constant.INVALID_ROW_DATA,
         });
+      } else if (seenEmails.has(email)) {
+        logger.error("Bulk invite: duplicate email within file", {
+          data: { email, role: rawRole, adminId },
+        });
+        results.push({
+          email,
+          role: rawRole,
+          status: "FAILED",
+          reason: constant.DUPLICATE_EMAIL_IN_FILE,
+        });
       } else {
+        seenEmails.add(email);
+
         try {
           const invitation = await this.inviteUser(
             email,

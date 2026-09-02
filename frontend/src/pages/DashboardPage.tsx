@@ -1,19 +1,27 @@
-import React from "react";
+import React, { useState } from "react";
 import {
-  User,
   Stethoscope,
   UserCheck,
   LogOut,
   Sparkles,
   ShieldCheck,
   Lock,
+  CalendarCheck,
+  Search,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { DoctorAvailabilitySection } from "../components/doctor/DoctorAvailabilitySection";
+import { DoctorAppointmentsSection } from "../components/doctor/DoctorAppointmentsSection";
 import { PatientDoctorDiscovery } from "../components/patient/PatientDoctorDiscovery";
+import { PatientAppointmentsList } from "../components/patient/PatientAppointmentsList";
 
 export const DashboardPage: React.FC = () => {
   const { user, logout, isLoading } = useAuth();
+
+  // Tab State
+  const [patientTab, setPatientTab] = useState<"discovery" | "appointments">("discovery");
+  const [doctorTab, setDoctorTab] = useState<"appointments" | "availability">("appointments");
 
   const getRoleTheme = (role?: string) => {
     switch (role) {
@@ -88,11 +96,87 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Role-Based Section Rendering */}
-      {user?.role === "DOCTOR" && <DoctorAvailabilitySection />}
+      {/* PATIENT VIEW */}
+      {user?.role === "PATIENT" && (
+        <div className="space-y-6">
+          {/* Navigation Pill Switcher */}
+          <div className="flex items-center gap-2 bg-stone-100/90 p-1.5 rounded-2xl border border-stone-200/80 max-w-md shadow-2xs">
+            <button
+              onClick={() => setPatientTab("discovery")}
+              className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                patientTab === "discovery"
+                  ? "bg-white text-orange-950 shadow-xs border border-orange-200/80"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-white/50"
+              }`}
+            >
+              <Search className="w-3.5 h-3.5 text-orange-600" />
+              <span>Find & Book Doctors</span>
+            </button>
 
-      {user?.role === "PATIENT" && <PatientDoctorDiscovery />}
+            <button
+              onClick={() => setPatientTab("appointments")}
+              className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                patientTab === "appointments"
+                  ? "bg-white text-orange-950 shadow-xs border border-orange-200/80"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-white/50"
+              }`}
+            >
+              <CalendarCheck className="w-3.5 h-3.5 text-orange-600" />
+              <span>My Appointments</span>
+            </button>
+          </div>
 
+          {patientTab === "discovery" && (
+            <PatientDoctorDiscovery
+              onAppointmentBooked={() => setPatientTab("appointments")}
+            />
+          )}
+
+          {patientTab === "appointments" && (
+            <PatientAppointmentsList
+              onNavigateToBooking={() => setPatientTab("discovery")}
+            />
+          )}
+        </div>
+      )}
+
+      {/* DOCTOR VIEW */}
+      {user?.role === "DOCTOR" && (
+        <div className="space-y-6">
+          {/* Navigation Pill Switcher */}
+          <div className="flex items-center gap-2 bg-stone-100/90 p-1.5 rounded-2xl border border-stone-200/80 max-w-md shadow-2xs">
+            <button
+              onClick={() => setDoctorTab("appointments")}
+              className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                doctorTab === "appointments"
+                  ? "bg-white text-teal-950 shadow-xs border border-teal-200/80"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-white/50"
+              }`}
+            >
+              <CalendarCheck className="w-3.5 h-3.5 text-teal-600" />
+              <span>Patient Appointments</span>
+            </button>
+
+            <button
+              onClick={() => setDoctorTab("availability")}
+              className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                doctorTab === "availability"
+                  ? "bg-white text-teal-950 shadow-xs border border-teal-200/80"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-white/50"
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5 text-teal-600" />
+              <span>My Availability</span>
+            </button>
+          </div>
+
+          {doctorTab === "appointments" && <DoctorAppointmentsSection />}
+
+          {doctorTab === "availability" && <DoctorAvailabilitySection />}
+        </div>
+      )}
+
+      {/* ADMIN VIEW */}
       {user?.role === "ADMIN" && (
         <div className="bg-white border border-stone-200/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
           <div className="flex items-center justify-between border-b border-stone-100 pb-4">
@@ -131,4 +215,5 @@ export const DashboardPage: React.FC = () => {
     </div>
   );
 };
+
 

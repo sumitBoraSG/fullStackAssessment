@@ -1,4 +1,4 @@
-import { getManager } from "typeorm";
+import { EntityManager, getManager } from "typeorm";
 
 import { UserInvitationRepo } from "@database/repository/user-invitation.repository";
 
@@ -41,6 +41,27 @@ export class InvitationRepository {
 
   }
 
+  /**
+   * Same "active" definition as the partial unique index
+   * (idx_user_invitations_active_email): not used, not revoked — regardless
+   * of expiry. Used to distinguish a genuinely-pending invitation from a
+   * merely-expired one when a unique-constraint conflict is hit on insert.
+   */
+  public async findActiveInvitation(email: string) {
+    return this.invitationRepo
+      .createQueryBuilder("invitation")
+      .where("invitation.email = :email", {
+        email: email.toLowerCase(),
+      })
+      .andWhere("invitation.used_at IS NULL")
+      .andWhere("invitation.revoked_at IS NULL")
+      .getOne();
+  }
+
+  public async deleteInvitation(invitationId: number) {
+    return this.invitationRepo.delete({ id: invitationId });
+  }
+
   public async createInvitation(
     email: string,
     role: UserRole,
@@ -72,12 +93,34 @@ export class InvitationRepository {
     });
   }
 
+  /**
+   * Locks the invitation row (SELECT ... FOR UPDATE) so that two concurrent
+   * accept-invitation requests for the same token are serialized: the
+   * second waits for the first's transaction to commit, then observes
+   * usedAt already set and fails cleanly instead of racing to create two
+   * users. Must be called within an active transaction via `manager`.
+   */
+  public async findByHashedTokenForUpdate(
+    hashedToken: string,
+    manager: EntityManager,
+  ) {
+    return manager
+      .getCustomRepository(UserInvitationRepo)
+      .createQueryBuilder("invitation")
+      .where("invitation.hashedToken = :hashedToken", { hashedToken })
+      .setLock("pessimistic_write")
+      .getOne();
+  }
+
   public async markAsUsed(
     invitationId: number,
     updatedBy: number,
+    manager: EntityManager = getManager(),
   ) {
 
-    return this.invitationRepo
+    return manager
+
+      .getCustomRepository(UserInvitationRepo)
 
       .createQueryBuilder()
 

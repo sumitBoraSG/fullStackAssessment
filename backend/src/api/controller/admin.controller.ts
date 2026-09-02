@@ -5,7 +5,7 @@ import createError from "http-errors";
 import { UserRole } from "@database/enum/userRole";
 import { InvitationStatus } from "../../types/invitationStatus";
 import constant from "@config/constant";
-import logger from "@core/logger";
+
 
 export class AdminController {
   private adminService: AdminService = new AdminService();
@@ -23,15 +23,6 @@ export class AdminController {
         role,
         req.user!.id,
       );
-
-      logger.info("Invitation sent successfully", {
-        data: {
-          invitationId: result.id,
-          email: result.email,
-          role: result.role,
-          adminId: req.user!.id,
-        },
-      });
 
       res.status(constant.HTTP_STATUS_CREATED).json({
         success: true,
@@ -101,20 +92,17 @@ export class AdminController {
         role: UserRole;
       }[];
 
+      if (rows.length > constant.MAX_BULK_INVITE_ROWS) {
+        throw new createError.BadRequest(
+          constant.CSV_ROW_LIMIT_EXCEEDED,
+        );
+      }
+
       const result =
         await this.adminService.bulkInviteUsers(
           rows,
           req.user!.id,
         );
-
-      logger.info("Bulk invitation process completed", {
-        data: {
-          adminId: req.user!.id,
-          total: result.total,
-          successful: result.successful,
-          failed: result.failed,
-        },
-      });
 
       res.status(constant.HTTP_STATUS_OK).json({
         success: true,

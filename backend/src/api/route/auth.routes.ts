@@ -37,9 +37,19 @@ class AuthRoute {
       this.authController.acceptInvitation,
     );
 
+    // Public, read-only invitation preview — lets the signup page learn the
+    // invited role before rendering role-specific fields, without
+    // consuming the invitation.
+    this.router.get(
+      "/invitation/:token",
+      this.rateLimitMiddleware.auth,
+      this.authController.getInvitationDetails,
+    );
+
     // Logout clears HttpOnly cookies server-side
     this.router.post(
       "/logout",
+      this.rateLimitMiddleware.auth,
       this.authController.logout,
     );
   }

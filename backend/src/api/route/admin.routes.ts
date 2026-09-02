@@ -35,29 +35,31 @@ class AdminRoute {
     this.router.post(
       "/invite",
       this.rateLimitMiddleware.invitation,
-      this.requestValidator.validate("body", inviteUserSchema),
       this.authMiddleware.authenticate,
       this.authorizationMiddleware.authorize(UserRole.ADMIN),
+      this.requestValidator.validate("body", inviteUserSchema),
       this.adminController.inviteUser,
     );
 
     this.router.get(
       "/invitations",
-      this.requestValidator.validate("query", getInvitationsQuerySchema),
+      this.rateLimitMiddleware.general,
       this.authMiddleware.authenticate,
       this.authorizationMiddleware.authorize(
         UserRole.ADMIN,
       ),
+      this.requestValidator.validate("query", getInvitationsQuerySchema),
       this.adminController.getAllInvitations,
     );
 
     this.router.post(
       "/invitations/:id/revoke",
-      this.requestValidator.validate("params", revokeInvitationParamsSchema),
+      this.rateLimitMiddleware.general,
       this.authMiddleware.authenticate,
       this.authorizationMiddleware.authorize(
         UserRole.ADMIN,
       ),
+      this.requestValidator.validate("params", revokeInvitationParamsSchema),
       this.adminController.revokeInvitation,
     );
 
@@ -66,13 +68,14 @@ class AdminRoute {
       
       
       this.rateLimitMiddleware.invitation,
-      uploadCsv,
 
       this.authMiddleware.authenticate,
 
       this.authorizationMiddleware.authorize(
         UserRole.ADMIN,
       ),
+
+      uploadCsv,
 
       this.adminController.bulkInviteUsers,
     );

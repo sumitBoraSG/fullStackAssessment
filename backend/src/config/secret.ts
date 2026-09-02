@@ -2,6 +2,26 @@ import { config as dotenvConfig } from "dotenv";
 
 dotenvConfig();
 
+const REQUIRED_ENV_VARS = [
+  "DATABASE_URL",
+  "JWT_SECRET",
+  "REFRESH_TOKEN_SECRET",
+  "FRONTEND_URL",
+] as const;
+
+function validateEnv(): void {
+  const missing = REQUIRED_ENV_VARS.filter((name) => !process.env[name]);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variable(s): ${missing.join(", ")}. ` +
+        "Set them in your .env file before starting the app.",
+    );
+  }
+}
+
+validateEnv();
+
 export const ENVIRONMENT = process.env.NODE_ENV;
 
 export const {

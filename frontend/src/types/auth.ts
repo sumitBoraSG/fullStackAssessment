@@ -60,17 +60,34 @@ export interface InviteUserResponse {
   expiresAt: string;
 }
 
+export type BloodGroup = "O+" | "O-" | "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-";
+
+export const BLOOD_GROUPS: BloodGroup[] = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
+
 export interface AcceptInvitationPayload {
   token: string;
   firstName: string;
   lastName: string;
   password: string;
+  // Doctor-specific
+  specializationId?: number;
+  experienceYears?: number;
+  // Patient-specific
+  dob?: string;
+  heightCm?: number;
+  weightKg?: number;
+  bloodGroup?: BloodGroup;
 }
 
 export interface AcceptInvitationResponse {
   id: number;
   firstName: string;
   lastName: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface InvitationDetails {
   email: string;
   role: UserRole;
 }

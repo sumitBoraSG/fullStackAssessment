@@ -1,8 +1,9 @@
-import { getManager } from "typeorm";
+import { EntityManager, getManager } from "typeorm";
 import { UserRepo } from "@database/repository/user.repository";
 import { UserRole } from "@database/enum/userRole";
 import { Patient } from "@database/model/Patient";
 import { Doctor } from "@database/model/Doctor";
+import { BloodGroup } from "@database/enum/BloodGroup";
 export class AuthRepository {
   private get userRepo() {
     return getManager().getCustomRepository(UserRepo);
@@ -26,43 +27,55 @@ export class AuthRepository {
       .andWhere("user.deleted_at IS NULL")
       .getOne();
   }
-  public async createPatientProfile(patientId: number) {
-    const patient = getManager()
-        .getRepository(Patient)
-        .create({
-            patientId,
-        });
+  public async createPatientProfile(
+    patientId: number,
+    profile: {
+      dob: string;
+      heightCm: number;
+      weightKg: number;
+      bloodGroup: BloodGroup;
+    },
+    manager: EntityManager = getManager(),
+  ) {
+    const repo = manager.getRepository(Patient);
+    const patient = repo.create({
+      patientId,
+      dob: profile.dob,
+      heightCm: profile.heightCm,
+      weightKg: profile.weightKg,
+      bloodGroup: profile.bloodGroup,
+    });
 
-    return getManager()
-        .getRepository(Patient)
-        .save(patient);
+    return repo.save(patient);
   }
 
   public async createDoctorProfile(
     doctorId: number,
     specializationId: number,
     experienceYears: number,
-) {
-    const doctor = getManager()
-        .getRepository(Doctor)
-        .create({
-            doctorId,
-            specializationId,
-            experienceYears,
-        });
+    manager: EntityManager = getManager(),
+  ) {
+    const repo = manager.getRepository(Doctor);
+    const doctor = repo.create({
+      doctorId,
+      specializationId,
+      experienceYears,
+    });
 
-    return getManager()
-        .getRepository(Doctor)
-        .save(doctor);
-}
-  public async createUser(data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    hashedPassword: string;
-    role: UserRole;
-  }) {
-    const user = this.userRepo.create({
+    return repo.save(doctor);
+  }
+  public async createUser(
+    data: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      hashedPassword: string;
+      role: UserRole;
+    },
+    manager: EntityManager = getManager(),
+  ) {
+    const repo = manager.getCustomRepository(UserRepo);
+    const user = repo.create({
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email.toLowerCase(),
@@ -70,6 +83,6 @@ export class AuthRepository {
       role: data.role,
     });
 
-    return this.userRepo.save(user);
+    return repo.save(user);
   }
 }

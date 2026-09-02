@@ -8,6 +8,59 @@ import {
 } from "@database/repository/appointment.repository";
 import { DoctorRepository } from "@database/repository/doctor.repository";
 import { Appointment } from "@database/model/Appointment";
+import constant from "@config/constant";
+import logger from "@core/logger";
+import {
+    buildISTRangeLiteral,
+    getISTCurrentTimeString,
+    getISTDayBounds,
+    getISTTodayString,
+    isISTDateTimeInPast,
+    parseRangeToIST,
+} from "@util/dateTimeRange";
+
+// A doctor must not confirm an appointment whose scheduled time has already
+// passed, and must not complete one that hasn't started yet.
+function assertAppointmentTimeAllowsTransition(
+    status: AppointmentStatus,
+    appointmentTime: string,
+    context: { appointmentId: number; doctorId: number },
+): void {
+    if (status !== AppointmentStatus.CONFIRMED && status !== AppointmentStatus.COMPLETED) {
+        return;
+    }
+
+    const scheduled = parseRangeToIST(appointmentTime);
+    const hasStarted = isISTDateTimeInPast(scheduled.date, scheduled.startTime);
+
+    if (status === AppointmentStatus.CONFIRMED && hasStarted) {
+        logger.error(
+            "Update appointment status failed: scheduled time already passed",
+            {
+                data: {
+                    ...context,
+                    scheduledDate: scheduled.date,
+                    scheduledStartTime: scheduled.startTime,
+                },
+            },
+        );
+        throw new createError.Conflict(constant.APPOINTMENT_TIME_ALREADY_PASSED);
+    }
+
+    if (status === AppointmentStatus.COMPLETED && !hasStarted) {
+        logger.error(
+            "Update appointment status failed: appointment has not started yet",
+            {
+                data: {
+                    ...context,
+                    scheduledDate: scheduled.date,
+                    scheduledStartTime: scheduled.startTime,
+                },
+            },
+        );
+        throw new createError.Conflict(constant.APPOINTMENT_NOT_YET_STARTED);
+    }
+}
 
 export class AppointmentService {
     private static readonly DEFAULT_PAGE = 1;
@@ -49,6 +102,25 @@ export class AppointmentService {
             options,
         );
 
+        logger.info("Patient appointments fetched successfully", {
+            data: {
+                patientId,
+                count: result.appointments.length,
+                total: result.total,
+                page: result.page,
+                limit: result.limit,
+                filters: {
+                    status: filters.status,
+                    date: filters.date,
+                    dateFrom: filters.dateFrom,
+                    dateTo: filters.dateTo,
+                    doctorId: filters.doctorId,
+                    sortBy: options.sortBy,
+                    order: options.order,
+                },
+            },
+        });
+
         return {
             appointments: result.appointments.map((appointment) =>
                 this.formatPatientAppointment(appointment),
@@ -85,6 +157,25 @@ export class AppointmentService {
             options,
         );
 
+        logger.info("Doctor appointments fetched successfully", {
+            data: {
+                doctorId,
+                count: result.appointments.length,
+                total: result.total,
+                page: result.page,
+                limit: result.limit,
+                filters: {
+                    status: filters.status,
+                    date: filters.date,
+                    dateFrom: filters.dateFrom,
+                    dateTo: filters.dateTo,
+                    patientId: filters.patientId,
+                    sortBy: options.sortBy,
+                    order: options.order,
+                },
+            },
+        });
+
         return {
             appointments: result.appointments.map((appointment) =>
                 this.formatDoctorAppointment(appointment),
@@ -105,11 +196,38 @@ export class AppointmentService {
         startTime: string,
         endTime: string,
     ) {
-        // Validate time
-        if (startTime >= endTime) {
+        const today = new Date();
+        const todayString = getISTTodayString(today);
+
+        if (date < todayString) {
+            logger.error("Create appointment failed: date in past", {
+                data: { patientId, doctorId, date, startTime, endTime },
+            });
             throw new createError.BadRequest(
-                "Start time must be before end time",
+                constant.APPOINTMENT_DATE_IN_PAST,
             );
+        }
+
+        if (startTime >= endTime) {
+            logger.error("Create appointment failed: invalid time range", {
+                data: { patientId, doctorId, date, startTime, endTime },
+            });
+            throw new createError.BadRequest(
+                constant.INVALID_APPOINTMENT_TIME,
+            );
+        }
+
+        if (date === todayString) {
+            const currentTime = getISTCurrentTimeString(today);
+
+            if (startTime <= currentTime) {
+                logger.error("Create appointment failed: time in past", {
+                    data: { patientId, doctorId, date, startTime, endTime },
+                });
+                throw new createError.BadRequest(
+                    constant.APPOINTMENT_TIME_IN_PAST,
+                );
+            }
         }
 
         // Check doctor exists
@@ -117,8 +235,11 @@ export class AppointmentService {
             await this.doctorRepository.findDoctorById(doctorId);
 
         if (!doctor) {
+            logger.error("Create appointment failed: doctor not found", {
+                data: { patientId, doctorId },
+            });
             throw new createError.NotFound(
-                "Doctor not found",
+                constant.DOCTOR_NOT_FOUND,
             );
         }
 
@@ -129,20 +250,16 @@ export class AppointmentService {
             );
 
         if (!patient) {
+            logger.error("Create appointment failed: patient not found", {
+                data: { patientId, doctorId },
+            });
             throw new createError.NotFound(
-                "Patient not found",
+                constant.PATIENT_NOT_FOUND,
             );
         }
 
         // Build appointment time range
-        const startDateTime =
-            `${date}T${startTime}:00+05:30`;
-
-        const endDateTime =
-            `${date}T${endTime}:00+05:30`;
-
-        const appointmentTime =
-            `[${startDateTime},${endDateTime})`;
+        const appointmentTime = buildISTRangeLiteral(date, startTime, endTime);
 
         // Check doctor's availability
         const availability =
@@ -153,8 +270,18 @@ export class AppointmentService {
                 );
 
         if (!availability) {
+            logger.error("Create appointment failed: doctor not available at requested time", {
+                data: {
+                    patientId,
+                    doctorId,
+                    date,
+                    startTime,
+                    endTime,
+                    appointmentTime,
+                },
+            });
             throw new createError.Conflict(
-                "Doctor is not available at this time",
+                constant.DOCTOR_NOT_AVAILABLE,
             );
         }
 
@@ -167,20 +294,48 @@ export class AppointmentService {
                     status: AppointmentStatus.PENDING,
                 });
 
+            logger.info("Appointment created successfully", {
+                data: {
+                    appointmentId: appointment.id,
+                    patientId,
+                    doctorId,
+                    date,
+                    startTime,
+                    endTime,
+                    status: appointment.status,
+                },
+            });
+
             return {
                 id: appointment.id,
-                patientId: appointment.patientId,
-                doctorId: appointment.doctorId,
                 status: appointment.status,
                 date,
                 startTime,
                 endTime,
                 createdAt: appointment.createdAt,
+                updatedAt: appointment.updatedAt,
+                doctor: {
+                    doctorId: doctor.doctorId,
+                    firstName: doctor.user?.firstName || "",
+                    lastName: doctor.user?.lastName || "",
+                    specialization:
+                        doctor.specialization?.name || "General Practitioner",
+                    experienceYears: doctor.experienceYears || 0,
+                },
             };
         } catch (error: any) {
             if (error?.code === "23P01") {
+                logger.error("Create appointment failed: appointment time conflict", {
+                    data: {
+                        patientId,
+                        doctorId,
+                        date,
+                        startTime,
+                        endTime,
+                    },
+                });
                 throw new createError.Conflict(
-                    "Appointment time is no longer available",
+                    constant.APPOINTMENT_TIME_UNAVAILABLE,
                 );
             }
 
@@ -200,8 +355,11 @@ export class AppointmentService {
             );
 
         if (!appointment) {
+            logger.error("Update appointment status failed: appointment not found", {
+                data: { appointmentId, doctorId, requestedStatus: status },
+            });
             throw new createError.NotFound(
-                "Appointment not found",
+                constant.APPOINTMENT_NOT_FOUND,
             );
         }
 
@@ -221,22 +379,61 @@ export class AppointmentService {
             [AppointmentStatus.CANCELLED]: [],
         };
 
-        if (!allowedTransitions[appointment.status].includes(status)) {
+        if (!allowedTransitions[appointment.status]?.includes(status)) {
+            logger.error("Update appointment status failed: invalid transition", {
+                data: {
+                    appointmentId,
+                    doctorId,
+                    currentStatus: appointment.status,
+                    requestedStatus: status,
+                },
+            });
             throw new createError.BadRequest(
-                `Invalid appointment status transition from ${appointment.status} to ${status}`,
+                constant.INVALID_STATUS_TRANSITION,
             );
         }
+
+        assertAppointmentTimeAllowsTransition(
+            status,
+            appointment.appointmentTime,
+            { appointmentId, doctorId },
+        );
 
         const result =
             await this.appointmentRepository.updateAppointmentStatusByDoctor(
                 appointmentId,
                 doctorId,
+                appointment.status,
                 status,
             );
 
         if (!result.affected) {
-            throw new createError.NotFound(
-                "Appointment not found",
+            const current =
+                await this.appointmentRepository.findDoctorAppointmentById(
+                    appointmentId,
+                    doctorId,
+                );
+
+            if (!current) {
+                logger.error("Update appointment status failed: appointment not found", {
+                    data: { appointmentId, doctorId, requestedStatus: status },
+                });
+                throw new createError.NotFound(
+                    constant.APPOINTMENT_NOT_FOUND,
+                );
+            }
+
+            logger.error("Update appointment status failed: concurrent status change", {
+                data: {
+                    appointmentId,
+                    doctorId,
+                    expectedStatus: appointment.status,
+                    currentStatus: current.status,
+                    requestedStatus: status,
+                },
+            });
+            throw new createError.Conflict(
+                constant.APPOINTMENT_STATUS_CONFLICT,
             );
         }
 
@@ -247,10 +444,23 @@ export class AppointmentService {
             );
 
         if (!updatedAppointment) {
+            logger.error("Update appointment status failed: updated appointment not found", {
+                data: { appointmentId, doctorId, status },
+            });
             throw new createError.NotFound(
-                "Appointment not found",
+                constant.APPOINTMENT_NOT_FOUND,
             );
         }
+
+        logger.info("Appointment status updated successfully", {
+            data: {
+                appointmentId,
+                doctorId,
+                patientId: appointment.patientId,
+                oldStatus: appointment.status,
+                newStatus: status,
+            },
+        });
 
         return this.formatDoctorAppointment(updatedAppointment);
     }
@@ -267,14 +477,20 @@ export class AppointmentService {
             );
 
         if (!appointment) {
+            logger.error("Cancel appointment failed: appointment not found", {
+                data: { appointmentId, patientId },
+            });
             throw new createError.NotFound(
-                "Appointment not found",
+                constant.APPOINTMENT_NOT_FOUND,
             );
         }
 
         if (status !== AppointmentStatus.CANCELLED) {
+            logger.error("Cancel appointment failed: patient can only cancel", {
+                data: { appointmentId, patientId, requestedStatus: status },
+            });
             throw new createError.BadRequest(
-                "Patients can only update appointment status to CANCELLED",
+                constant.PATIENT_CAN_ONLY_CANCEL,
             );
         }
 
@@ -284,8 +500,32 @@ export class AppointmentService {
                 AppointmentStatus.CONFIRMED,
             ].includes(appointment.status)
         ) {
+            logger.error("Cancel appointment failed: invalid current status", {
+                data: {
+                    appointmentId,
+                    patientId,
+                    currentStatus: appointment.status,
+                    requestedStatus: status,
+                },
+            });
             throw new createError.BadRequest(
-                `Invalid appointment status transition from ${appointment.status} to ${status}`,
+                constant.INVALID_STATUS_TRANSITION,
+            );
+        }
+
+        const scheduled = parseRangeToIST(appointment.appointmentTime);
+
+        if (isISTDateTimeInPast(scheduled.date, scheduled.startTime)) {
+            logger.error("Cancel appointment failed: scheduled time already passed", {
+                data: {
+                    appointmentId,
+                    patientId,
+                    scheduledDate: scheduled.date,
+                    scheduledStartTime: scheduled.startTime,
+                },
+            });
+            throw new createError.Conflict(
+                constant.CANNOT_CANCEL_PAST_APPOINTMENT,
             );
         }
 
@@ -293,12 +533,36 @@ export class AppointmentService {
             await this.appointmentRepository.updateAppointmentStatusByPatient(
                 appointmentId,
                 patientId,
+                appointment.status,
                 status,
             );
 
         if (!result.affected) {
-            throw new createError.NotFound(
-                "Appointment not found",
+            const current =
+                await this.appointmentRepository.findPatientAppointmentById(
+                    appointmentId,
+                    patientId,
+                );
+
+            if (!current) {
+                logger.error("Cancel appointment failed: appointment not found", {
+                    data: { appointmentId, patientId },
+                });
+                throw new createError.NotFound(
+                    constant.APPOINTMENT_NOT_FOUND,
+                );
+            }
+
+            logger.error("Cancel appointment failed: concurrent status change", {
+                data: {
+                    appointmentId,
+                    patientId,
+                    expectedStatus: appointment.status,
+                    currentStatus: current.status,
+                },
+            });
+            throw new createError.Conflict(
+                constant.APPOINTMENT_STATUS_CONFLICT,
             );
         }
 
@@ -309,10 +573,23 @@ export class AppointmentService {
             );
 
         if (!updatedAppointment) {
+            logger.error("Cancel appointment failed: updated appointment not found", {
+                data: { appointmentId, patientId },
+            });
             throw new createError.NotFound(
-                "Appointment not found",
+                constant.APPOINTMENT_NOT_FOUND,
             );
         }
+
+        logger.info("Appointment cancelled successfully", {
+            data: {
+                appointmentId,
+                patientId,
+                doctorId: appointment.doctorId,
+                oldStatus: appointment.status,
+                newStatus: status,
+            },
+        });
 
         return this.formatPatientAppointment(updatedAppointment);
     }
@@ -344,8 +621,11 @@ export class AppointmentService {
                 : AppointmentService.DEFAULT_LIMIT;
 
         if (filters.date && (filters.dateFrom || filters.dateTo)) {
+            logger.error("Appointment query failed: conflicting date filters", {
+                data: { date: filters.date, dateFrom: filters.dateFrom, dateTo: filters.dateTo },
+            });
             throw new createError.BadRequest(
-                "Use either date or dateFrom/dateTo filters",
+                constant.INVALID_DATE_FILTER,
             );
         }
 
@@ -374,48 +654,34 @@ export class AppointmentService {
         dateTo?: string,
     ) {
         if (date) {
+            const { startOfDay, endOfDayExclusive } = getISTDayBounds(date);
             return {
-                startsAt: this.getDayStart(date),
-                endsAt: this.getDayEndExclusive(date),
+                startsAt: startOfDay,
+                endsAt: endOfDayExclusive,
             };
         }
 
         if (dateFrom && dateTo && dateFrom > dateTo) {
+            logger.error("Appointment query failed: dateFrom after dateTo", {
+                data: { dateFrom, dateTo },
+            });
             throw new createError.BadRequest(
-                "dateFrom cannot be after dateTo",
+                constant.INVALID_DATE_RANGE,
             );
         }
 
         return {
             startsAt: dateFrom
-                ? this.getDayStart(dateFrom)
+                ? getISTDayBounds(dateFrom).startOfDay
                 : undefined,
             endsAt: dateTo
-                ? this.getDayEndExclusive(dateTo)
+                ? getISTDayBounds(dateTo).endOfDayExclusive
                 : undefined,
         };
     }
 
-    private getDayStart(date: string) {
-        return `${date}T00:00:00+05:30`;
-    }
-
-    private getDayEndExclusive(date: string) {
-        const nextDay = new Date(
-            `${date}T00:00:00+05:30`,
-        );
-        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-
-        const nextDate =
-            new Intl.DateTimeFormat("en-CA", {
-                timeZone: "Asia/Kolkata",
-            }).format(nextDay);
-
-        return `${nextDate}T00:00:00+05:30`;
-    }
-
     private formatPatientAppointment(appointment: Appointment) {
-        const appointmentTime = this.parseAppointmentTime(
+        const appointmentTime = parseRangeToIST(
             appointment.appointmentTime,
         );
 
@@ -441,7 +707,7 @@ export class AppointmentService {
     }
 
     private formatDoctorAppointment(appointment: Appointment) {
-        const appointmentTime = this.parseAppointmentTime(
+        const appointmentTime = parseRangeToIST(
             appointment.appointmentTime,
         );
 
@@ -462,54 +728,4 @@ export class AppointmentService {
         };
     }
 
-    private parseAppointmentTime(rangeStr: string) {
-        const matches = rangeStr.match(
-            /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[+-]\d{2}(?::\d{2})?/g,
-        );
-
-        if (!matches || matches.length < 2) {
-            return { date: "", startTime: "", endTime: "" };
-        }
-
-        const normalizeIso = (value: string) => {
-            let normalized = value.replace(" ", "T");
-
-            if (/[+-]\d{2}$/.test(normalized)) {
-                normalized = `${normalized}:00`;
-            }
-
-            return normalized;
-        };
-
-        const startDate = new Date(normalizeIso(matches[0]));
-        const endDate = new Date(normalizeIso(matches[1]));
-
-        const date = new Intl.DateTimeFormat("en-CA", {
-            timeZone: "Asia/Kolkata",
-        }).format(startDate);
-
-        const formatTime = (value: Date) => {
-            const parts = new Intl.DateTimeFormat("en-GB", {
-                timeZone: "Asia/Kolkata",
-                hour: "2-digit",
-                minute: "2-digit",
-                hourCycle: "h23",
-            }).formatToParts(value);
-
-            const hour =
-                parts.find((part) => part.type === "hour")
-                    ?.value || "00";
-            const minute =
-                parts.find((part) => part.type === "minute")
-                    ?.value || "00";
-
-            return `${hour}:${minute}`;
-        };
-
-        return {
-            date,
-            startTime: formatTime(startDate),
-            endTime: formatTime(endDate),
-        };
-    }
 }

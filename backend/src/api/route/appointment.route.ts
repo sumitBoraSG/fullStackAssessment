@@ -11,7 +11,6 @@ import {
   appointmentStatusParamsSchema,
   getPatientAppointmentsQuerySchema,
   patientAppointmentStatusBodySchema,
-  doctorAppointmentStatusBodySchema
 } from "@api/validator/appointment.validation";
 import { UserRole } from "@database/enum/userRole";
 
@@ -29,18 +28,21 @@ class AppointmentRoute {
 
   private authorizationMiddleware: AuthorizationMiddleware =
     new AuthorizationMiddleware();
-  private rateLimitMiddleware = new RateLimitMiddleware();
+
+  private rateLimitMiddleware: RateLimitMiddleware =
+    new RateLimitMiddleware();
+
   constructor() {
     this.router.get(
       "/",
       this.rateLimitMiddleware.general,
-      this.requestValidator.validate(
-        "query",
-        getPatientAppointmentsQuerySchema,
-      ),
       this.authMiddleware.authenticate,
       this.authorizationMiddleware.authorize(
         UserRole.PATIENT,
+      ),
+      this.requestValidator.validate(
+        "query",
+        getPatientAppointmentsQuerySchema,
       ),
       this.appointmentController.getPatientAppointments,
     );
@@ -48,13 +50,13 @@ class AppointmentRoute {
     this.router.post(
       "/",
       this.rateLimitMiddleware.general,
-      this.requestValidator.validate(
-        "body",
-        createAppointmentSchema,
-    ),
       this.authMiddleware.authenticate,
       this.authorizationMiddleware.authorize(
         UserRole.PATIENT,
+      ),
+      this.requestValidator.validate(
+        "body",
+        createAppointmentSchema,
       ),
       this.appointmentController.createAppointment,
     );
@@ -74,32 +76,8 @@ class AppointmentRoute {
         "body",
         patientAppointmentStatusBodySchema,
       ),
-      
       this.appointmentController.cancelAppointment,
     );
-
-    this.router.patch(
-  "/change/:appointmentId/status",
-
-  this.rateLimitMiddleware.general,
-  this.authMiddleware.authenticate,
-
-  this.authorizationMiddleware.authorize(
-    UserRole.DOCTOR,
-  ),     
-  this.requestValidator.validate(
-    "params",
-    appointmentStatusParamsSchema,
-  ),
-  
-  this.requestValidator.validate(
-    "body",
-    doctorAppointmentStatusBodySchema,
-  ),
-
-
-  this.appointmentController.updateAppointmentStatus,
-  );
   }
 }
 

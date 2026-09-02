@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { UserRole } from "../database/enum/userRole";
 import logger from "@core/logger";
 import constant from "@config/constant";
+import { JWT_SECRET } from "@config/secret";
 
 interface JwtPayload {
   id: number;
@@ -31,7 +32,7 @@ export class AuthMiddleware {
 
       const decoded = jwt.verify(
         token,
-        process.env.JWT_SECRET as string
+        JWT_SECRET as string
       ) as JwtPayload;
 
       req.user = {

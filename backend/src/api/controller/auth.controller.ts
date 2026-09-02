@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { AuthService } from "@service/auth.service";
 import constant from "@config/constant";
 import { ENVIRONMENT } from "@config/secret";
+import logger from "@core/logger";
 
 const IS_PRODUCTION = ENVIRONMENT === "production";
 
@@ -65,6 +66,12 @@ export class AuthController {
         firstName,
         lastName,
         password,
+        specializationId,
+        experienceYears,
+        dob,
+        heightCm,
+        weightKg,
+        bloodGroup,
       } = req.body;
 
       const result =
@@ -73,6 +80,14 @@ export class AuthController {
           firstName,
           lastName,
           password,
+          {
+            specializationId,
+            experienceYears,
+            dob,
+            heightCm,
+            weightKg,
+            bloodGroup,
+          },
         );
 
       const response = {
@@ -85,6 +100,25 @@ export class AuthController {
       res
         .status(constant.HTTP_STATUS_CREATED)
         .json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getInvitationDetails = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const { token } = req.params;
+
+      const result = await this.authService.getInvitationDetails(token);
+
+      res.status(constant.HTTP_STATUS_OK).json({
+        success: true,
+        data: result,
+      });
     } catch (error) {
       next(error);
     }
@@ -142,6 +176,10 @@ export class AuthController {
         secure: IS_PRODUCTION,
         sameSite: "lax",
         path: "/",
+      });
+
+      logger.info("User logged out successfully", {
+        data: { userId: req.user?.id },
       });
 
       res.status(constant.HTTP_STATUS_OK).json({ success: true });

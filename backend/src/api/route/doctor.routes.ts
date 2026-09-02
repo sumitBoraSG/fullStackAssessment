@@ -34,33 +34,38 @@ class DoctorRoute {
         this.router.post(
             "/availability",
             this.rateLimitMiddleware.general,
-            this.requestValidator.validate("body", createAvailabilitySchema),
             this.authMiddleware.authenticate,
             this.authorizationMiddleware.authorize(UserRole.DOCTOR),
+            this.requestValidator.validate("body", createAvailabilitySchema),
             this.doctorController.createAvailability,
         );
 
         this.router.get(
             "/availability",
-            this.requestValidator.validate("query", getAvailabilityQuerySchema),
+            this.rateLimitMiddleware.general,
             this.authMiddleware.authenticate,
             this.authorizationMiddleware.authorize(UserRole.DOCTOR),
+            this.requestValidator.validate("query", getAvailabilityQuerySchema),
             this.doctorController.getOwnAvailability,
         );
 
         this.router.get(
             "/appointments",
+            this.rateLimitMiddleware.general,
+            this.authMiddleware.authenticate,
+            this.authorizationMiddleware.authorize(UserRole.DOCTOR),
             this.requestValidator.validate(
                 "query",
                 getDoctorAppointmentsQuerySchema,
             ),
-            this.authMiddleware.authenticate,
-            this.authorizationMiddleware.authorize(UserRole.DOCTOR),
             this.appointmentController.getDoctorAppointments,
         );
 
         this.router.patch(
             "/appointments/:appointmentId/status",
+            this.rateLimitMiddleware.general,
+            this.authMiddleware.authenticate,
+            this.authorizationMiddleware.authorize(UserRole.DOCTOR),
             this.requestValidator.validate(
                 "params",
                 appointmentStatusParamsSchema,
@@ -69,8 +74,6 @@ class DoctorRoute {
                 "body",
                 doctorAppointmentStatusBodySchema,
             ),
-            this.authMiddleware.authenticate,
-            this.authorizationMiddleware.authorize(UserRole.DOCTOR),
             this.appointmentController.updateAppointmentStatus,
         );
     }
@@ -82,36 +85,42 @@ class DoctorsDiscoveryRoute {
     private requestValidator = new HttpRequestValidator();
     private authMiddleware = new AuthMiddleware();
     private authorizationMiddleware = new AuthorizationMiddleware();
+    private rateLimitMiddleware = new RateLimitMiddleware();
 
     constructor() {
         // Patient & Doctor discovery endpoints under /doctors
+        // Non-sensitive static reference data — deliberately public (no
+        // auth) so the not-yet-registered accept-invitation signup page can
+        // populate the specialization dropdown for doctor invitations.
         this.router.get(
             "/specializations",
-            this.authMiddleware.authenticate,
+            this.rateLimitMiddleware.general,
             this.doctorController.getSpecializations,
         );
 
         this.router.get(
             "/:doctorId/availability",
-            this.requestValidator.validate("query", getAvailabilityQuerySchema),
+            this.rateLimitMiddleware.general,
             this.authMiddleware.authenticate,
             this.authorizationMiddleware.authorize(
                 UserRole.PATIENT,
                 UserRole.DOCTOR,
                 UserRole.ADMIN,
             ),
+            this.requestValidator.validate("query", getAvailabilityQuerySchema),
             this.doctorController.getDoctorAvailability,
         );
 
         this.router.get(
             "/",
-            this.requestValidator.validate("query", getDoctorsQuerySchema),
+            this.rateLimitMiddleware.general,
             this.authMiddleware.authenticate,
             this.authorizationMiddleware.authorize(
                 UserRole.PATIENT,
                 UserRole.DOCTOR,
                 UserRole.ADMIN,
             ),
+            this.requestValidator.validate("query", getDoctorsQuerySchema),
             this.doctorController.getDoctors,
         );
     }

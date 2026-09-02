@@ -4,10 +4,8 @@ import {
   Filter,
   Stethoscope,
   Calendar,
-  Clock,
   ChevronLeft,
   ChevronRight,
-  Loader2,
   AlertCircle,
   X,
   Sparkles,
@@ -26,8 +24,16 @@ import type {
   DoctorAvailabilityDetails,
 } from "../../types/doctor";
 import type { PaginationMeta } from "../../types/auth";
+import type { PatientAppointment } from "../../types/appointment";
+import { AppointmentBookingModal } from "./AppointmentBookingModal";
 
-export const PatientDoctorDiscovery: React.FC = () => {
+interface PatientDoctorDiscoveryProps {
+  onAppointmentBooked?: (appointment: PatientAppointment) => void;
+}
+
+export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
+  onAppointmentBooked,
+}) => {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>("");
@@ -46,11 +52,11 @@ export const PatientDoctorDiscovery: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Selected Doctor Modal State
-  const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
-  const [doctorDetails, setDoctorDetails] = useState<DoctorAvailabilityDetails | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
-  const [modalDateFilter, setModalDateFilter] = useState<string>("");
+  // Booking Modal State
+  const [bookingDoctorDetails, setBookingDoctorDetails] =
+    useState<DoctorAvailabilityDetails | null>(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState<boolean>(false);
+  const [isLoadingDoctorDetails, setIsLoadingDoctorDetails] = useState<number | null>(null);
 
   // Fetch Specializations Dropdown List
   useEffect(() => {
@@ -95,37 +101,26 @@ export const PatientDoctorDiscovery: React.FC = () => {
     fetchDoctors(1);
   }, [fetchDoctors]);
 
-  // Fetch Doctor Availability for Modal
-  const openDoctorModal = async (doctorId: number) => {
-    setSelectedDoctorId(doctorId);
-    setDoctorDetails(null);
-    setIsLoadingDetails(true);
-    setModalDateFilter("");
+  // Open Booking Modal for a Doctor
+  const handleOpenBooking = async (doctorId: number) => {
+    setIsLoadingDoctorDetails(doctorId);
+    setErrorMsg(null);
 
     const res = await getDoctorAvailabilityApi(doctorId);
-    setIsLoadingDetails(false);
+    setIsLoadingDoctorDetails(null);
 
     if (res.success && res.data) {
-      setDoctorDetails(res.data);
+      setBookingDoctorDetails(res.data);
+      setIsBookingModalOpen(true);
     } else {
-      setErrorMsg(res.message || "Failed to load doctor availability.");
+      setErrorMsg(res.message || "Failed to fetch doctor schedule for booking.");
     }
   };
 
-  const fetchModalFilteredAvailability = async (dateStr: string) => {
-    if (!selectedDoctorId) return;
-    setModalDateFilter(dateStr);
-    setIsLoadingDetails(true);
-    const res = await getDoctorAvailabilityApi(selectedDoctorId, dateStr);
-    setIsLoadingDetails(false);
-    if (res.success && res.data) {
-      setDoctorDetails(res.data);
+  const handleBookingSuccess = (appointment: PatientAppointment) => {
+    if (onAppointmentBooked) {
+      onAppointmentBooked(appointment);
     }
-  };
-
-  const closeDoctorModal = () => {
-    setSelectedDoctorId(null);
-    setDoctorDetails(null);
   };
 
   const handleClearFilters = () => {
@@ -133,44 +128,6 @@ export const PatientDoctorDiscovery: React.FC = () => {
     setSelectedSpecialization("");
     setSelectedDate("");
   };
-
-  const formatDisplayTime = (timeStr: string) => {
-    if (!timeStr) return "";
-    const [h, m] = timeStr.split(":").map(Number);
-    if (isNaN(h)) return timeStr;
-    const period = h >= 12 ? "PM" : "AM";
-    const displayHour = h % 12 === 0 ? 12 : h % 12;
-    const displayMin = String(m).padStart(2, "0");
-    return `${displayHour}:${displayMin} ${period}`;
-  };
-
-  const formatDisplayDate = (dateStr: string) => {
-    if (!dateStr) return "";
-    try {
-      const [y, m, d] = dateStr.split("-").map(Number);
-      const dateObj = new Date(y, m - 1, d);
-      return dateObj.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  // Group availability by date for modal
-  const groupedModalAvailabilities = (doctorDetails?.availability || []).reduce<
-    Record<string, typeof doctorDetails.availability>
-  >((acc, slot) => {
-    const key = slot.date;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(slot);
-    return acc;
-  }, {});
-
-  const sortedModalDates = Object.keys(groupedModalAvailabilities).sort();
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -180,13 +137,13 @@ export const PatientDoctorDiscovery: React.FC = () => {
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200/80 text-[11px] font-bold text-teal-900 mb-2 shadow-2xs">
             <Sparkles className="w-3 h-3 text-teal-600" />
-            <span>Healthcare Services</span>
+            <span>Healthcare Directory</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">
-            Find a Doctor
+            Find & Book a Doctor
           </h1>
           <p className="text-sm text-stone-500 mt-1">
-            Browse qualified healthcare specialists, filter by department or date, and view upcoming availability hours.
+            Browse verified medical specialists, filter by department or availability, and book your consultation in seconds.
           </p>
         </div>
       </div>
@@ -357,13 +314,16 @@ export const PatientDoctorDiscovery: React.FC = () => {
                 </div>
               </div>
 
-              {/* Action */}
+              {/* Book Appointment Action */}
               <button
-                onClick={() => openDoctorModal(doc.id)}
-                className="w-full py-2.5 px-4 rounded-xl bg-stone-50 hover:bg-amber-600 hover:text-white border border-stone-200 hover:border-amber-600 text-stone-800 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => handleOpenBooking(doc.id)}
+                disabled={isLoadingDoctorDetails === doc.id}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
                 <CalendarDays className="w-3.5 h-3.5" />
-                <span>View Availability</span>
+                <span>
+                  {isLoadingDoctorDetails === doc.id ? "Loading..." : "Book Appointment"}
+                </span>
               </button>
             </div>
           ))}
@@ -396,106 +356,17 @@ export const PatientDoctorDiscovery: React.FC = () => {
         </div>
       )}
 
-      {/* Selected Doctor Availability Modal */}
-      {selectedDoctorId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border border-stone-200 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
-                  <Stethoscope className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-stone-900 tracking-tight">
-                    Dr. {doctorDetails?.doctor.firstName || "..."} {doctorDetails?.doctor.lastName || ""}
-                  </h3>
-                  <p className="text-xs text-amber-900 font-semibold">
-                    {doctorDetails?.doctor.specialization || "Specialist"} &bull;{" "}
-                    {doctorDetails?.doctor.experienceYears || 0} years experience
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={closeDoctorModal}
-                className="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Filter by Date */}
-            <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
-              <span className="text-xs font-semibold text-stone-700 shrink-0">Filter Date:</span>
-              <input
-                type="date"
-                value={modalDateFilter}
-                onChange={(e) => fetchModalFilteredAvailability(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-              />
-              {modalDateFilter && (
-                <button
-                  onClick={() => fetchModalFilteredAvailability("")}
-                  className="text-xs text-amber-800 underline font-medium cursor-pointer"
-                >
-                  Show All
-                </button>
-              )}
-            </div>
-
-            {/* Modal Body - Availability List */}
-            <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
-              {isLoadingDetails ? (
-                <div className="py-12 text-center text-stone-400 space-y-2">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-amber-600" />
-                  <p className="text-xs">Loading available schedule...</p>
-                </div>
-              ) : sortedModalDates.length === 0 ? (
-                <div className="py-8 text-center bg-stone-50 rounded-2xl border border-stone-200/80 space-y-2">
-                  <Calendar className="w-6 h-6 text-stone-400 mx-auto" />
-                  <p className="text-xs font-bold text-stone-700">No Open Availability Slots</p>
-                  <p className="text-[11px] text-stone-400">
-                    This doctor has not published availability slots for the selected date.
-                  </p>
-                </div>
-              ) : (
-                sortedModalDates.map((dateKey) => {
-                  const slots = groupedModalAvailabilities[dateKey];
-                  return (
-                    <div key={dateKey} className="p-4 rounded-2xl bg-stone-50/80 border border-stone-200/80 space-y-2.5">
-                      <div className="flex items-center gap-2 text-stone-900 font-bold text-xs">
-                        <div className="w-2 h-2 rounded-full bg-amber-500" />
-                        <span>{formatDisplayDate(dateKey)}</span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        {slots.map((slot) => (
-                          <div
-                            key={slot.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-stone-900 text-xs font-semibold shadow-2xs"
-                          >
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            <span>
-                              {formatDisplayTime(slot.startTime)} – {formatDisplayTime(slot.endTime)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Modal Footer Note */}
-            <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/50 text-[11px] text-amber-900">
-              <span className="font-semibold block mb-0.5">Availability View Only</span>
-              <span>Online appointment booking will be available in the upcoming release.</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Booking Modal */}
+      <AppointmentBookingModal
+        doctorDetails={bookingDoctorDetails}
+        isOpen={isBookingModalOpen}
+        onClose={() => {
+          setIsBookingModalOpen(false);
+          setBookingDoctorDetails(null);
+        }}
+        onSuccess={handleBookingSuccess}
+      />
     </div>
   );
 };
+

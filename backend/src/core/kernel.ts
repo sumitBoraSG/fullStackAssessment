@@ -2,6 +2,7 @@ import * as bodyParser from "body-parser";
 import { Application } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import i18n from "i18n";
 import * as Sentry from "@sentry/node";
 import { RequestIDMiddleware } from "@middleware/request-id";
@@ -17,6 +18,13 @@ export class Kernel {
   public initBodyParser(app: Application): void {
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({ extended: false }));
+  }
+
+  public initSecurityHeaders(app: Application): void {
+    // Pure JSON API behind a separate frontend origin — no server-rendered
+    // HTML, so Helmet's defaults apply cleanly without loosening CSP for
+    // inline scripts/styles.
+    app.use(helmet());
   }
 
   public addRequestId(app: Application): void {

@@ -9,7 +9,6 @@ export interface DoctorListItem {
   id: number;
   firstName: string;
   lastName: string;
-  email: string;
   specialization: string;
   experienceYears: number;
 }

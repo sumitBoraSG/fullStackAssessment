@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import logger from "@core/logger";
 
 import {
   SMTP_HOST,
@@ -85,6 +86,10 @@ If you did not expect this invitation, you can ignore this email.
           If you did not expect this invitation, you can ignore this email.
         </p>
       `,
+    });
+
+    logger.info("Invitation email sent successfully", {
+      data: { email, role },
     });
   }
 }

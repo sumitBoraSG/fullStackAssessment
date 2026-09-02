@@ -2,6 +2,7 @@ import { getManager,EntityRepository, Repository } from "typeorm";
 import { DoctorAvailabilityRepo } from "@database/repository/doctor-availability.repository";
 import { Doctor } from "@database/model/Doctor";
 import { Specialization } from "@database/model/Specialization";
+import { getISTDayBounds } from "@util/dateTimeRange";
 
 export interface FindAllDoctorsOptions {
     search?: string;
@@ -26,14 +27,16 @@ export class DoctorRepository extends Repository<Doctor> {
         return getManager().getRepository(Specialization);
     }
 
-    public async ensureDoctorProfile(doctorId: number) {
-        const manager = getManager();
-        await manager.query(
-            `INSERT INTO doctors (doctor_id, specialization_id, experience_years) 
-             VALUES ($1, 1, 1) 
-             ON CONFLICT (doctor_id) DO NOTHING`,
-            [doctorId],
-        );
+    public async findSpecializationById(
+        specializationId: number,
+        manager = getManager(),
+    ) {
+        return manager
+            .getRepository(Specialization)
+            .createQueryBuilder("specialization")
+            .where("specialization.id = :specializationId", { specializationId })
+            .andWhere("specialization.isActive = true")
+            .getOne();
     }
 
     public async createAvailability(data: {
@@ -57,11 +60,10 @@ export class DoctorRepository extends Repository<Doctor> {
             .where("availability.doctorId = :doctorId", { doctorId });
 
         if (date && date.trim()) {
-            const startOfDay = `${date.trim()}T00:00:00+05:30`;
-            const endOfDay = `${date.trim()}T23:59:59+05:30`;
+            const { startOfDay, endOfDayExclusive } = getISTDayBounds(date.trim());
             query.andWhere(
-                "availability.availabilityTime && tstzrange(:startOfDay, :endOfDay, '[]')",
-                { startOfDay, endOfDay },
+                "availability.availabilityTime && tstzrange(:startOfDay, :endOfDay, '[)')",
+                { startOfDay, endOfDay: endOfDayExclusive },
             );
         }
 
@@ -101,9 +103,7 @@ export class DoctorRepository extends Repository<Doctor> {
         }
 
         if (options.date && options.date.trim()) {
-            const dateStr = options.date.trim();
-            const startOfDay = `${dateStr}T00:00:00+05:30`;
-            const endOfDay = `${dateStr}T23:59:59+05:30`;
+            const { startOfDay, endOfDayExclusive } = getISTDayBounds(options.date.trim());
 
             query.andWhere((qb) => {
                 const subQuery = qb
@@ -111,8 +111,8 @@ export class DoctorRepository extends Repository<Doctor> {
                     .select("da.doctorId")
                     .from("doctor_availabilities", "da")
                     .where(
-                        "da.availability_time && tstzrange(:startOfDay, :endOfDay, '[]')",
-                        { startOfDay, endOfDay },
+                        "da.availability_time && tstzrange(:startOfDay, :endOfDay, '[)')",
+                        { startOfDay, endOfDay: endOfDayExclusive },
                     )
                     .getQuery();
                 return `doctor.doctorId IN ${subQuery}`;
@@ -152,7 +152,12 @@ export class DoctorRepository extends Repository<Doctor> {
     }
 
     public async getSpecializations() {
+        // Only ever list specializations that are actually selectable —
+        // must stay consistent with findSpecializationById's isActive
+        // check, otherwise a signing-up doctor can pick an option from
+        // this list that the backend then rejects.
         return this.specializationRepo.find({
+            where: { isActive: true },
             order: { name: "ASC" },
         });
     }

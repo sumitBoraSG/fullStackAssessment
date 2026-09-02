@@ -2,6 +2,7 @@ import type {
   AcceptInvitationPayload,
   AcceptInvitationResponse,
   ApiResponse,
+  InvitationDetails,
   LoginResponse,
   LogoutResponse,
 } from "../types/auth";
@@ -52,9 +53,55 @@ export async function logoutApi(): Promise<LogoutResponse> {
 }
 
 /**
+ * Fetch an invitation's role/email before rendering the signup form, without
+ * consuming it.
+ * GET /auth/invitation/:token
+ */
+export async function getInvitationDetailsApi(
+  token: string
+): Promise<ApiResponse<InvitationDetails>> {
+  try {
+    const response = await apiFetch(`/auth/invitation/${encodeURIComponent(token)}`, {
+      method: "GET",
+      skipAuthRefresh: true,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.success === false) {
+      const errorMessage =
+        data.message ||
+        data.error?.message ||
+        "This invitation link is invalid or has expired.";
+      return {
+        success: false,
+        message: errorMessage,
+        error: {
+          code: data.code || data.error?.code || "INVITATION_LOOKUP_ERROR",
+          message: errorMessage,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      data: data.data,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err.message || "Network error. Please check your connection.",
+      error: {
+        code: "NETWORK_ERROR",
+        message: err.message || "Failed to connect to the server.",
+      },
+    };
+  }
+}
+
+/**
  * Accept an invitation and complete user registration.
  * POST /auth/accept-invitation
- * Sends strictly { token, firstName, lastName, password }.
  */
 export async function acceptInvitationApi(
   payload: AcceptInvitationPayload
