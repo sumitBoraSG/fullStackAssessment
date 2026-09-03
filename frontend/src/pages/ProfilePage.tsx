@@ -14,9 +14,9 @@ import type { DoctorProfileData, PatientProfileData } from "../types/profile";
 type ProfileData = PatientProfileData | DoctorProfileData;
 
 const roleBadge: Record<string, { color: BadgeColor; icon: React.ComponentType<{ className?: string }> }> = {
-  ADMIN: { color: "amber", icon: ShieldCheck },
-  DOCTOR: { color: "teal", icon: Stethoscope },
-  PATIENT: { color: "orange", icon: UserCircle },
+  ADMIN: { color: "stone", icon: ShieldCheck },
+  DOCTOR: { color: "emerald", icon: Stethoscope },
+  PATIENT: { color: "blue", icon: UserCircle },
 };
 
 export const ProfilePage: React.FC = () => {
@@ -59,18 +59,18 @@ export const ProfilePage: React.FC = () => {
   const badge = user?.role ? roleBadge[user.role] : undefined;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Header Card */}
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6">
+      {/* Editorial Header Card */}
       <Card variant="section">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-lg font-bold text-white shadow-2xs shrink-0">
-            {user?.firstName ? user.firstName[0]?.toUpperCase() : user?.email[0]?.toUpperCase()}
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#141413] text-[#F0EEE6] flex items-center justify-center text-lg font-semibold shadow-xs shrink-0">
+            {user?.firstName ? user.firstName[0]?.toUpperCase() : user?.email?.[0]?.toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-extrabold text-stone-900 tracking-tight m-0 truncate">
+            <h1 className="text-lg sm:text-xl font-semibold text-[#141413] tracking-tight m-0 truncate">
               {user?.firstName ? `${user.firstName} ${user.lastName || ""}` : user?.email}
             </h1>
-            <p className="text-xs text-stone-500 truncate">{user?.email}</p>
+            <p className="text-xs text-[#141413]/60 truncate m-0 mt-0.5">{user?.email}</p>
           </div>
           {badge && (
             <Badge color={badge.color} icon={badge.icon}>
@@ -80,7 +80,7 @@ export const ProfilePage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Loading */}
+      {/* Loading Skeleton */}
       {isLoading && (
         <Card variant="section">
           <div className="space-y-3">
@@ -104,7 +104,7 @@ export const ProfilePage: React.FC = () => {
         </div>
       )}
 
-      {/* Loaded */}
+      {/* Loaded Content */}
       {!isLoading && !loadError && user?.role === "PATIENT" && profile && (
         <PatientProfileForm profile={profile as PatientProfileData} onSaved={handleSaved} />
       )}
@@ -114,7 +114,9 @@ export const ProfilePage: React.FC = () => {
       )}
 
       {!isLoading && !loadError && user?.role === "ADMIN" && (
-        <p className="text-sm text-stone-500">Profile editing is not applicable to admin accounts.</p>
+        <div className="p-6 rounded-xl bg-[#E3DBCC] border border-[#D8D0BF] text-xs sm:text-sm text-[#141413]/70">
+          Profile editing is not applicable to admin accounts.
+        </div>
       )}
     </div>
   );

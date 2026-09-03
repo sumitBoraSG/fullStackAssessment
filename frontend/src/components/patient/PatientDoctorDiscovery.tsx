@@ -132,19 +132,26 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <p className="text-sm text-stone-500 max-w-xl m-0">
-          Browse verified specialists and book your consultation in a few clicks.
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Editorial Section Header */}
+      <div>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#141413]/60 block mb-1">
+          Specialist Directory
+        </span>
+        <h2 className="text-xl sm:text-2xl font-semibold text-[#141413] tracking-tight m-0">
+          Find the right doctor
+        </h2>
+        <p className="text-xs sm:text-sm text-[#141413]/60 mt-1 max-w-xl leading-relaxed">
+          Browse verified medical specialists and schedule your consultation.
         </p>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white/90 border border-stone-200/80 rounded-3xl p-4 sm:p-6 shadow-sm backdrop-blur-md space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5">
+      <div className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-4 sm:p-5 shadow-xs space-y-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
           {/* Search Input (5 cols) */}
           <div className="lg:col-span-5 relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
               <Search className="w-4 h-4" />
             </div>
             <input
@@ -152,27 +159,27 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search doctors by name..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-50/60 border border-stone-200 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+              className="w-full pl-9 pr-8 py-2 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs sm:text-sm text-[#141413] placeholder-[#141413]/40 focus:outline-none focus:border-[#141413] focus:ring-1 focus:ring-[#141413] transition-all font-normal"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-stone-400 hover:text-stone-600"
+                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#141413]/40 hover:text-[#141413] cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
           {/* Specialization Filter (4 cols) */}
           <div className="lg:col-span-4 relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
               <Filter className="w-4 h-4" />
             </div>
             <select
               value={selectedSpecialization}
               onChange={(e) => setSelectedSpecialization(e.target.value)}
-              className="w-full pl-10 pr-8 py-2.5 rounded-xl bg-stone-50/60 border border-stone-200 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium appearance-none cursor-pointer"
+              className="w-full pl-9 pr-7 py-2 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs sm:text-sm text-[#141413] focus:outline-none focus:border-[#141413] focus:ring-1 focus:ring-[#141413] transition-all font-normal appearance-none cursor-pointer"
             >
               <option value="">All Specializations</option>
               {specializations.map((spec) => (
@@ -185,35 +192,35 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
 
           {/* Date Filter (3 cols) */}
           <div className="lg:col-span-3 relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
               <Calendar className="w-4 h-4" />
             </div>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-stone-50/60 border border-stone-200 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+              className="w-full pl-9 pr-2.5 py-2 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs sm:text-sm text-[#141413] focus:outline-none focus:border-[#141413] focus:ring-1 focus:ring-[#141413] transition-all font-normal"
             />
           </div>
         </div>
 
         {/* Active Filter Indicators */}
         {(searchQuery || selectedSpecialization || selectedDate) && (
-          <div className="flex items-center justify-between pt-2 border-t border-stone-100 text-xs text-stone-600">
+          <div className="flex items-center justify-between pt-2.5 border-t border-[#D8D0BF] text-xs text-[#141413]/70">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-stone-700">Active filters:</span>
+              <span className="font-medium text-[#141413]">Active filters:</span>
               {searchQuery && (
-                <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 font-medium">
+                <span className="px-2 py-0.5 rounded-md bg-[#FAF8F5] text-[#141413] border border-[#D8D0BF] text-[11px] font-medium">
                   Name: "{searchQuery}"
                 </span>
               )}
               {selectedSpecialization && (
-                <span className="px-2.5 py-1 rounded-full bg-teal-50 text-teal-900 border border-teal-200 font-medium">
+                <span className="px-2 py-0.5 rounded-md bg-[#FAF8F5] text-[#141413] border border-[#D8D0BF] text-[11px] font-medium">
                   {selectedSpecialization}
                 </span>
               )}
               {selectedDate && (
-                <span className="px-2.5 py-1 rounded-full bg-orange-50 text-orange-900 border border-orange-200 font-medium">
+                <span className="px-2 py-0.5 rounded-md bg-[#FAF8F5] text-[#141413] border border-[#D8D0BF] text-[11px] font-medium">
                   Date: {selectedDate}
                 </span>
               )}
@@ -221,7 +228,7 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
 
             <button
               onClick={handleClearFilters}
-              className="text-amber-800 hover:text-amber-950 font-semibold cursor-pointer text-xs underline shrink-0 ml-auto"
+              className="text-[#141413] hover:underline font-medium cursor-pointer text-xs shrink-0 ml-auto"
             >
               Clear all filters
             </button>
@@ -234,22 +241,22 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
 
       {/* Doctors Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white/80 border border-stone-200/60 rounded-3xl p-6 space-y-4 animate-pulse">
-              <div className="w-12 h-12 rounded-2xl bg-stone-200" />
+            <div key={i} className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-5 space-y-4 animate-pulse">
+              <div className="w-10 h-10 rounded-lg bg-[#D8D0BF]/60" />
               <div className="space-y-2">
-                <div className="h-5 w-3/4 bg-stone-200 rounded-lg" />
-                <div className="h-4 w-1/2 bg-stone-100 rounded-lg" />
+                <div className="h-4 w-3/4 bg-[#D8D0BF]/60 rounded-md" />
+                <div className="h-3 w-1/2 bg-[#D8D0BF]/40 rounded-md" />
               </div>
-              <div className="h-9 w-full bg-stone-100 rounded-xl" />
+              <div className="h-8 w-full bg-[#D8D0BF]/60 rounded-lg" />
             </div>
           ))}
         </div>
       ) : doctors.length === 0 ? (
         <EmptyState
           icon={Stethoscope}
-          color="amber"
+          color="stone"
           title="No Doctors Found"
           description="No medical specialists matched your selected filters or search query. Try clearing filters to view all doctors."
           action={
@@ -261,17 +268,17 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
           }
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {doctors.map((doc) => (
             <div
               key={doc.id}
-              className="bg-white/90 border border-stone-200/80 rounded-3xl p-6 shadow-sm backdrop-blur-md hover:shadow-md hover:border-amber-300 transition-all flex flex-col justify-between group space-y-5"
+              className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-5 shadow-xs hover:border-[#141413]/30 transition-all flex flex-col justify-between group space-y-4 text-[#141413]"
             >
-              <div className="space-y-4">
-                {/* Doctor Avatar Badge */}
+              <div className="space-y-3">
+                {/* Avatar & Verified Badge */}
                 <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-50 to-amber-100 border border-amber-200/80 text-amber-700 flex items-center justify-center font-bold text-base shadow-2xs group-hover:scale-105 transition-all">
-                    <Stethoscope className="w-6 h-6" />
+                  <div className="w-10 h-10 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#141413] flex items-center justify-center font-medium shadow-2xs">
+                    <Stethoscope className="w-5 h-5" />
                   </div>
                   <Badge color="emerald" icon={UserCheck} size="xs">
                     Verified
@@ -280,14 +287,14 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
 
                 {/* Info */}
                 <div>
-                  <h3 className="text-base font-extrabold text-stone-900 tracking-tight group-hover:text-amber-800 transition-colors">
+                  <h3 className="text-base font-semibold text-[#141413] tracking-tight group-hover:underline">
                     Dr. {doc.firstName} {doc.lastName}
                   </h3>
-                  <div className="flex items-center gap-1.5 text-xs text-amber-900 font-semibold mt-1">
+                  <div className="text-xs font-medium text-[#141413]/80 mt-0.5">
                     <span>{doc.specialization}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-stone-500 mt-2">
-                    <Award className="w-3.5 h-3.5 text-stone-400" />
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#141413]/60 mt-1.5">
+                    <Award className="w-3.5 h-3.5 text-[#141413]/40" />
                     <span>{doc.experienceYears} years experience</span>
                   </div>
                 </div>
@@ -311,25 +318,25 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
 
       {/* Pagination Footer */}
       {!isLoading && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 border-t border-stone-200/80 text-xs text-stone-500">
+        <div className="flex items-center justify-between pt-4 border-t border-[#D8D0BF] text-xs text-[#141413]/60">
           <span>
             Showing Page <strong>{pagination.page}</strong> of <strong>{pagination.totalPages}</strong> ({pagination.total} Doctors)
           </span>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => fetchDoctors(pagination.page - 1)}
               disabled={pagination.page <= 1}
-              className="p-2 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs"
+              className="p-1.5 rounded-lg bg-[#E3DBCC] border border-[#D8D0BF] hover:bg-[#D9D1C1] text-[#141413] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => fetchDoctors(pagination.page + 1)}
               disabled={pagination.page >= pagination.totalPages}
-              className="p-2 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs"
+              className="p-1.5 rounded-lg bg-[#E3DBCC] border border-[#D8D0BF] hover:bg-[#D9D1C1] text-[#141413] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -348,4 +355,3 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
     </div>
   );
 };
-

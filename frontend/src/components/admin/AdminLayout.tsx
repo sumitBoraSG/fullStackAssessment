@@ -32,7 +32,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Future-ready navigation configuration
   const navItems: NavItemConfig[] = [
     {
       id: "invitations",
@@ -43,11 +42,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     },
   ];
 
-  // Determine active item (default /admin to /admin/invitations)
   const isInvitationsActive =
     path === "/admin" || path === "/admin/invitations" || path.startsWith("/admin/invitations");
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -72,49 +69,47 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#faf8f5] text-stone-900 font-sans">
+    <div className="min-h-screen flex bg-[#F0EEE6] text-[#141413] font-sans">
       {/* Mobile Drawer Backdrop */}
       {mobileMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-stone-900/30 backdrop-blur-xs transition-opacity"
+          className="lg:hidden fixed inset-0 z-40 bg-[#141413]/30 backdrop-blur-xs transition-opacity"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      {/* Persistent Left Sidebar (Desktop & Mobile Drawer) */}
+      {/* Persistent Left Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-stone-200/90 flex flex-col transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#F0EEE6] border-r border-[#D8D0BF] flex flex-col transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Sidebar Header / Brand */}
         <div>
-          <div className="h-16 px-5 border-b border-stone-100 flex items-center justify-between">
+          <div className="h-16 px-5 border-b border-[#D8D0BF] flex items-center justify-between">
             <div
               onClick={() => navigate("/admin/invitations")}
-              className="flex items-center gap-3 cursor-pointer group"
+              className="flex items-center gap-3 cursor-pointer group select-none"
             >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 p-0.5 shadow-md shadow-amber-500/15 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <div className="w-full h-full bg-white rounded-[9px] flex items-center justify-center">
-                  <Activity className="w-4 h-4 text-amber-600" />
-                </div>
+              <div className="w-8 h-8 rounded-lg bg-[#141413] text-[#F0EEE6] flex items-center justify-center transition-opacity group-hover:opacity-85 shadow-xs">
+                <Activity className="w-4 h-4" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-base tracking-tight text-stone-900">
+                  <span className="font-semibold text-base tracking-tight text-[#141413]">
                     DocPulse
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                  <span className="text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.2 rounded bg-[#E3DBCC] text-[#141413] border border-[#D8D0BF]">
                     Admin
                   </span>
                 </div>
-                <p className="text-[11px] text-stone-400 m-0">Management Portal</p>
+                <p className="text-[11px] text-[#141413]/50 m-0">Management Portal</p>
               </div>
             </div>
 
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="lg:hidden p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 cursor-pointer"
+              className="lg:hidden p-1.5 rounded-lg text-[#141413]/50 hover:text-[#141413] hover:bg-[#E3DBCC] cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -122,7 +117,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
           {/* Navigation Section */}
           <div className="p-3 space-y-1">
-            <div className="px-3 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+            <div className="px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#141413]/50">
               Admin Menu
             </div>
             {navItems.map((item) => {
@@ -136,15 +131,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.path)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                     isActive
-                      ? "bg-amber-50/90 text-amber-950 border border-amber-200/80 shadow-2xs"
-                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-50 border border-transparent"
+                      ? "bg-[#E3DBCC] text-[#141413] border border-[#D8D0BF] shadow-xs"
+                      : "text-[#141413]/70 hover:text-[#141413] hover:bg-[#E3DBCC]/50 border border-transparent"
                   }`}
                 >
                   <Icon
                     className={`w-4 h-4 shrink-0 ${
-                      isActive ? "text-amber-600" : "text-stone-400"
+                      isActive ? "text-[#141413]" : "text-[#141413]/50"
                     }`}
                   />
                   <span className="truncate">{item.label}</span>
@@ -158,68 +153,65 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-30 h-16 bg-white/90 backdrop-blur-md border-b border-stone-200/90 px-4 sm:px-8 flex items-center justify-between shadow-2xs">
+        <header className="sticky top-0 z-30 h-16 bg-[#F0EEE6]/95 backdrop-blur-md border-b border-[#D8D0BF] px-4 sm:px-8 flex items-center justify-between">
           {/* Mobile Menu Toggle & Breadcrumbs */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-100 cursor-pointer"
+              className="lg:hidden p-2 rounded-lg text-[#141413]/70 hover:text-[#141413] hover:bg-[#E3DBCC] cursor-pointer"
               aria-label="Open sidebar menu"
             >
               <Menu className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-2 text-xs">
-              <span className="font-semibold text-stone-400">Admin</span>
-              <span className="text-stone-300">/</span>
-              <span className="font-bold text-stone-900">Invitations</span>
+              <span className="font-medium text-[#141413]/50">Admin</span>
+              <span className="text-[#D8D0BF]">/</span>
+              <span className="font-semibold text-[#141413]">Invitations</span>
             </div>
           </div>
 
           {/* Header Right Actions */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             {/* Shortcut to User Dashboard */}
             <button
               onClick={() => navigate("/dashboard")}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-600 hover:text-stone-900 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#E3DBCC] hover:bg-[#D9D1C1] border border-[#D8D0BF] text-[#141413] text-xs font-medium shadow-xs transition-colors cursor-pointer"
               title="Switch to User View"
             >
               <span>User View</span>
-              <ExternalLink className="w-3 h-3 text-stone-400" />
+              <ExternalLink className="w-3 h-3 text-[#141413]/50" />
             </button>
 
             {/* Profile Menu Dropdown */}
             <div className="relative" ref={profileDropdownRef}>
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-200/90 shadow-2xs transition-colors cursor-pointer"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#E3DBCC] hover:bg-[#D9D1C1] border border-[#D8D0BF] shadow-xs transition-colors cursor-pointer"
               >
-                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-orange-600 text-white font-bold text-xs flex items-center justify-center">
+                <div className="w-6 h-6 rounded-md bg-[#141413] text-[#F0EEE6] font-semibold text-xs flex items-center justify-center">
                   {user?.firstName ? user.firstName[0]?.toUpperCase() : user?.email?.[0]?.toUpperCase() || "A"}
                 </div>
                 <div className="text-left hidden sm:block">
-                  <span className="block text-xs font-bold text-stone-900 leading-tight">
+                  <span className="block text-xs font-medium text-[#141413] leading-tight">
                     {user?.firstName || "Admin"}
                   </span>
-                  <span className="block text-[10px] text-amber-700 font-semibold leading-tight">
-                    Root Admin
-                  </span>
                 </div>
-                <ChevronDown className="w-3.5 h-3.5 text-stone-400 hidden sm:block" />
+                <ChevronDown className="w-3.5 h-3.5 text-[#141413]/50 hidden sm:block" />
               </button>
 
               {/* Profile Dropdown Menu */}
               {profileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl border border-stone-200 shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-4 py-2.5 border-b border-stone-100">
-                    <p className="text-xs font-bold text-stone-900 truncate m-0">
+                <div className="absolute right-0 mt-2 w-56 bg-[#E3DBCC] rounded-xl border border-[#D8D0BF] shadow-lg py-1 z-50 animate-in fade-in zoom-in-95 duration-150 text-[#141413]">
+                  <div className="px-4 py-2.5 border-b border-[#D8D0BF]">
+                    <p className="text-xs font-semibold text-[#141413] truncate m-0">
                       {user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Administrator"}
                     </p>
-                    <p className="text-[11px] text-stone-500 truncate m-0">
+                    <p className="text-[11px] text-[#141413]/60 truncate m-0">
                       {user?.email}
                     </p>
-                    <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
-                      <Shield className="w-3 h-3 text-amber-600" />
+                    <div className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#FAF8F5] border border-[#D8D0BF] text-[10px] font-medium text-[#141413]">
+                      <Shield className="w-3 h-3 text-[#141413]/70" />
                       <span>Administrator</span>
                     </div>
                   </div>
@@ -230,15 +222,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                         setProfileDropdownOpen(false);
                         navigate("/profile");
                       }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer"
+                      className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium text-[#141413] hover:bg-[#FAF8F5]/80 transition-colors cursor-pointer"
                     >
                       <span>My Profile</span>
-                      <UserCog className="w-3.5 h-3.5 text-stone-400" />
+                      <UserCog className="w-3.5 h-3.5 text-[#141413]/50" />
                     </button>
 
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-[#8E2A22] hover:bg-[#EEDCDA]/60 transition-colors cursor-pointer"
                     >
                       <LogOut className="w-3.5 h-3.5" />
                       <span>Sign Out</span>

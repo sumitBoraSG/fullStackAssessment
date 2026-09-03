@@ -21,9 +21,9 @@ export const PasswordRequirementChecklist: React.FC<PasswordRequirementChecklist
           }`}
         >
           {rule.passed ? (
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#2B5438]" />
           ) : (
-            <Circle className="w-3.5 h-3.5 text-stone-300" />
+            <Circle className="w-3.5 h-3.5 text-[#D8D0BF]" />
           )}
           <span>{rule.label}</span>
         </div>

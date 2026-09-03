@@ -58,21 +58,21 @@ export const DoctorProfileForm: React.FC<DoctorProfileFormProps> = ({ profile, o
   return (
     <div className="space-y-6">
       {/* Read-only Card */}
-      <Card variant="section" className="bg-stone-50/60">
-        <div className="flex items-center gap-2 text-stone-500 mb-5 pb-4 border-b border-stone-200/70">
+      <Card variant="section" className="bg-[#E3DBCC] border-[#D8D0BF]">
+        <div className="flex items-center gap-2 text-[#141413]/60 mb-5 pb-3.5 border-b border-[#D8D0BF]">
           <Lock className="w-3.5 h-3.5" />
-          <span className="text-xs font-bold uppercase tracking-wider">Read-only</span>
+          <span className="text-xs font-semibold uppercase tracking-wider">Read-only Information</span>
         </div>
 
         <div>
-          <span className="block text-xs font-semibold text-stone-500 mb-1">Specialization</span>
-          <p className="text-sm font-semibold text-stone-800 m-0">{profile.specialization}</p>
+          <span className="block text-xs font-medium text-[#141413]/60 mb-1">Specialization</span>
+          <p className="text-sm font-semibold text-[#141413] m-0">{profile.specialization}</p>
         </div>
       </Card>
 
       {/* Editable Card */}
       <Card variant="section">
-        <h3 className="text-sm font-bold text-stone-900 mb-5 pb-4 border-b border-stone-100">
+        <h3 className="text-sm font-semibold text-[#141413] mb-5 pb-3.5 border-b border-[#D8D0BF]">
           Practice Details
         </h3>
 

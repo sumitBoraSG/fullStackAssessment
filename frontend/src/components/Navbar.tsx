@@ -52,55 +52,53 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-stone-200/80 bg-white/85 backdrop-blur-xl shadow-2xs">
+    <header className="sticky top-0 z-40 w-full border-b border-[#D8D0BF] bg-[#F0EEE6]/95 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand */}
         <div
           onClick={handleBrandClick}
-          className="flex items-center gap-3 cursor-pointer group"
+          className="flex items-center gap-3 cursor-pointer group select-none"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 p-0.5 shadow-md shadow-amber-500/15 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
-              <Activity className="w-5 h-5 text-amber-600 animate-pulse" />
-            </div>
+          <div className="w-8 h-8 rounded-lg bg-[#141413] text-[#F0EEE6] flex items-center justify-center transition-opacity group-hover:opacity-85 shadow-xs">
+            <Activity className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-lg tracking-tight text-stone-900">
+              <span className="font-semibold text-base tracking-tight text-[#141413]">
                 DocPulse
               </span>
-              <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80">
+              <span className="text-[10px] font-medium tracking-wider uppercase px-1.5 py-0.5 rounded bg-[#E3DBCC] text-[#141413]/80 border border-[#D8D0BF]">
                 Portal
               </span>
             </div>
-            <p className="text-xs text-stone-500 hidden sm:block">Doctor Appointment & Healthcare Platform</p>
+            <p className="text-[11px] text-[#141413]/50 hidden sm:block">Doctor Appointment Platform</p>
           </div>
         </div>
 
-        {/* Center / Navigation Shortcuts for Admin */}
+        {/* Center Navigation Shortcuts for Admin */}
         {isAuthenticated && user?.role === "ADMIN" && (
-          <div className="hidden md:flex items-center gap-1.5 bg-stone-100/90 p-1 rounded-xl border border-stone-200/80 shadow-2xs">
+          <div className="hidden md:flex items-center gap-1 bg-[#E3DBCC]/60 p-1 rounded-lg border border-[#D8D0BF]">
             <button
               onClick={() => navigate("/admin/invitations")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
                 path.startsWith("/admin")
-                  ? "bg-white text-amber-900 border border-amber-200/80 shadow-2xs"
-                  : "text-stone-600 hover:text-stone-900 hover:bg-white/60"
+                  ? "bg-[#141413] text-[#F0EEE6] shadow-xs"
+                  : "text-[#141413]/70 hover:text-[#141413] hover:bg-[#E3DBCC]"
               }`}
             >
-              <Shield className="w-3.5 h-3.5 text-amber-600" />
+              <Shield className="w-3.5 h-3.5" />
               <span>Admin Panel</span>
             </button>
 
             <button
               onClick={() => navigate("/dashboard")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
                 path === "/dashboard"
-                  ? "bg-white text-stone-900 border border-stone-200 shadow-2xs"
-                  : "text-stone-600 hover:text-stone-900 hover:bg-white/60"
+                  ? "bg-[#141413] text-[#F0EEE6] shadow-xs"
+                  : "text-[#141413]/70 hover:text-[#141413] hover:bg-[#E3DBCC]"
               }`}
             >
-              <LayoutDashboard className="w-3.5 h-3.5 text-stone-600" />
+              <LayoutDashboard className="w-3.5 h-3.5" />
               <span>User Dashboard</span>
             </button>
           </div>
@@ -108,18 +106,15 @@ export const Navbar: React.FC = () => {
 
         {/* User Info / Actions */}
         {isAuthenticated && user && (
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/90 border border-stone-200/80 shadow-2xs">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-xs font-bold text-white shadow-2xs">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#E3DBCC]/70 border border-[#D8D0BF]">
+              <div className="w-6 h-6 rounded-md bg-[#141413] text-[#F0EEE6] flex items-center justify-center text-[10px] font-semibold">
                 {user.firstName ? user.firstName[0]?.toUpperCase() : user.email[0]?.toUpperCase()}
               </div>
 
               <div className="text-left hidden md:block">
-                <div className="text-xs font-semibold text-stone-800 truncate max-w-[150px]">
+                <div className="text-xs font-medium text-[#141413] truncate max-w-[140px]">
                   {user.firstName ? `${user.firstName} ${user.lastName || ""}` : user.email}
-                </div>
-                <div className="text-[11px] text-stone-500 truncate max-w-[150px]">
-                  {user.email}
                 </div>
               </div>
 
@@ -130,10 +125,10 @@ export const Navbar: React.FC = () => {
 
             <button
               onClick={() => navigate("/profile")}
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs transition-all duration-200 active:scale-95 cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                 path === "/profile"
-                  ? "bg-amber-50 text-amber-900 border-amber-200/80"
-                  : "bg-white hover:bg-stone-100 text-stone-600 hover:text-stone-900 border-stone-200/80"
+                  ? "bg-[#141413] text-[#F0EEE6] border-[#141413]"
+                  : "bg-[#E3DBCC] hover:bg-[#D9D1C1] text-[#141413] border-[#D8D0BF]"
               }`}
               title="View your profile"
             >
@@ -144,7 +139,7 @@ export const Navbar: React.FC = () => {
             <button
               onClick={() => logout()}
               disabled={isLoading}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-stone-600 hover:text-rose-700 border border-stone-200/80 hover:border-rose-200 text-xs font-semibold shadow-2xs transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#E3DBCC] hover:bg-[#EEDCDA] text-[#141413] hover:text-[#8E2A22] border border-[#D8D0BF] hover:border-[#DEC0BD] text-xs font-medium transition-all disabled:opacity-50 cursor-pointer"
               title="Logout from portal"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -156,4 +151,3 @@ export const Navbar: React.FC = () => {
     </header>
   );
 };
-

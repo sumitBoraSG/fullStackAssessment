@@ -5,8 +5,9 @@ import { renderWithProviders } from "../test/render";
 import { USER_KEY } from "../api/apiClient";
 import { defaultAdminUser, defaultDoctorUser, defaultPatientUser } from "../test/msw/handlers";
 import { DashboardPage } from "./DashboardPage";
+import type { User } from "../types/auth";
 
-function renderDashboardAs(user: typeof defaultPatientUser) {
+function renderDashboardAs(user: User) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   return renderWithProviders(<DashboardPage />);
 }

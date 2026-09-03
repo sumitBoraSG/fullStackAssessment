@@ -12,11 +12,11 @@ export interface EmptyStateProps {
 }
 
 const colorClasses: Record<EmptyStateColor, string> = {
-  amber: "bg-amber-50 border-amber-200/80 text-amber-600",
-  teal: "bg-teal-50 border-teal-200/80 text-teal-600",
-  orange: "bg-orange-50 border-orange-200/80 text-orange-600",
-  rose: "bg-rose-50 border-rose-200/80 text-rose-600",
-  stone: "bg-stone-100 border-stone-200/80 text-stone-500",
+  amber: "bg-[#EAE0CE] border-[#D4C4A8] text-[#7A5B18]",
+  teal: "bg-[#D7E3DC] border-[#BACEC3] text-[#285741]",
+  orange: "bg-[#E9DFCE] border-[#D8C4A7] text-[#7A4518]",
+  rose: "bg-[#EEDCDA] border-[#DEC0BD] text-[#7A2420]",
+  stone: "bg-[#DDD7CA] border-[#CCC4B4] text-[#4D483F]",
 };
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
@@ -27,19 +27,19 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   action,
 }) => {
   return (
-    <div className="bg-white/80 border border-stone-200/80 rounded-3xl p-12 text-center space-y-4 shadow-2xs">
+    <div className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-8 sm:p-12 text-center space-y-3.5 shadow-2xs">
       <div
         className={cn(
-          "w-14 h-14 rounded-2xl border flex items-center justify-center mx-auto",
+          "w-11 h-11 rounded-lg border flex items-center justify-center mx-auto shadow-2xs",
           colorClasses[color],
         )}
       >
-        <Icon className="w-7 h-7" />
+        <Icon className="w-5 h-5" />
       </div>
       <div className="space-y-1">
-        <h3 className="text-lg font-bold text-stone-900">{title}</h3>
+        <h3 className="text-base font-semibold text-[#141413] tracking-tight">{title}</h3>
         {description && (
-          <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">{description}</p>
+          <p className="text-xs text-[#141413]/60 max-w-sm mx-auto leading-relaxed">{description}</p>
         )}
       </div>
       {action && <div className="pt-2">{action}</div>}

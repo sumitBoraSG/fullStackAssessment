@@ -12,16 +12,21 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const baseClasses =
-  "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer px-4 py-2.5";
+  "inline-flex items-center justify-center gap-2 rounded-lg text-xs sm:text-sm font-medium tracking-tight transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer px-4 py-2.5 select-none";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-gradient-to-r from-amber-600 via-orange-500 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white shadow-md shadow-amber-600/20",
-  secondary: "bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 shadow-2xs",
-  danger: "bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-sm hover:shadow-md",
-  ghost: "text-stone-500 hover:text-amber-700 font-semibold bg-transparent",
-  success: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20",
-  info: "bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-600/20",
+    "bg-[#141413] hover:bg-[#262624] text-[#F0EEE6] border border-[#141413] shadow-xs",
+  secondary:
+    "bg-[#E3DBCC] hover:bg-[#D9D1C1] border border-[#D8D0BF] text-[#141413] shadow-xs",
+  danger:
+    "bg-[#8E2A22] hover:bg-[#7A231C] border border-[#8E2A22] text-[#F0EEE6] shadow-xs",
+  ghost:
+    "text-[#141413]/80 hover:text-[#141413] hover:bg-[#E3DBCC]/50 bg-transparent border border-transparent",
+  success:
+    "bg-[#2B5438] hover:bg-[#22442D] border border-[#2B5438] text-[#F0EEE6] shadow-xs",
+  info:
+    "bg-[#1E2E3D] hover:bg-[#16222E] border border-[#1E2E3D] text-[#F0EEE6] shadow-xs",
 };
 
 export const Button: React.FC<ButtonProps> = ({

@@ -81,9 +81,6 @@ export const AcceptInvitationPage: React.FC = () => {
     }
   }, [tokenFromUrl]);
 
-  // Look up the invitation's role/email as soon as we have a token, so the
-  // form can render the correct role-specific fields. The role is never
-  // chosen by the user — it comes entirely from the invitation.
   useEffect(() => {
     if (!token) {
       setIsLoadingInvitation(false);
@@ -112,7 +109,6 @@ export const AcceptInvitationPage: React.FC = () => {
     };
   }, [token]);
 
-  // Doctor invitations need a specialization list to choose from.
   useEffect(() => {
     if (invitation?.role !== "DOCTOR") return;
 
@@ -148,46 +144,50 @@ export const AcceptInvitationPage: React.FC = () => {
 
     if (!confirmPassword) {
       errs.confirmPassword = "Please confirm your password";
-    } else if (confirmPassword !== password) {
+    } else if (password !== confirmPassword) {
       errs.confirmPassword = "Passwords do not match";
     }
 
     if (invitation?.role === "DOCTOR") {
       if (!specializationId) {
-        errs.specializationId = "Please select a specialization";
+        errs.specializationId = "Specialization is required";
       }
-      const years = Number(experienceYears);
-      if (experienceYears === "" || isNaN(years)) {
+      const exp = Number(experienceYears);
+      if (experienceYears === "" || isNaN(exp)) {
         errs.experienceYears = "Years of experience is required";
-      } else if (years < 0 || years > 80) {
-        errs.experienceYears = "Must be between 0 and 80 years";
+      } else if (exp < 0 || exp > 80) {
+        errs.experienceYears = "Experience must be between 0 and 80 years";
       }
     }
 
     if (invitation?.role === "PATIENT") {
-      const todayStr = new Date().toISOString().slice(0, 10);
       if (!dob) {
         errs.dob = "Date of birth is required";
-      } else if (dob >= todayStr) {
-        errs.dob = "Date of birth must be in the past";
-      }
-
-      const height = Number(heightCm);
-      if (heightCm === "" || isNaN(height)) {
-        errs.heightCm = "Height is required";
-      } else if (height < 30 || height > 300) {
-        errs.heightCm = "Must be between 30 and 300 cm";
-      }
-
-      const weight = Number(weightKg);
-      if (weightKg === "" || isNaN(weight)) {
-        errs.weightKg = "Weight is required";
-      } else if (weight < 2 || weight > 500) {
-        errs.weightKg = "Must be between 2 and 500 kg";
+      } else {
+        const d = new Date(dob);
+        if (isNaN(d.getTime())) {
+          errs.dob = "Please enter a valid date";
+        } else if (d > new Date()) {
+          errs.dob = "Date of birth cannot be in the future";
+        }
       }
 
       if (!bloodGroup) {
         errs.bloodGroup = "Blood group is required";
+      }
+
+      const h = Number(heightCm);
+      if (heightCm === "" || isNaN(h)) {
+        errs.heightCm = "Height is required";
+      } else if (h < 30 || h > 300) {
+        errs.heightCm = "Height must be between 30 and 300 cm";
+      }
+
+      const w = Number(weightKg);
+      if (weightKg === "" || isNaN(w)) {
+        errs.weightKg = "Weight is required";
+      } else if (w < 2 || w > 500) {
+        errs.weightKg = "Weight must be between 2 and 500 kg";
       }
     }
 
@@ -197,40 +197,41 @@ export const AcceptInvitationPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
-
-    const currentToken = getParam("token") || token;
-    if (!currentToken) {
-      setErrors({ general: "No invitation token found in the URL." });
-      return;
-    }
-
+    if (!token || !invitation) return;
     if (!validate()) return;
 
     setIsSubmitting(true);
     setErrors({});
 
-    const res = await acceptInvitationApi({
-      token: currentToken,
+    const payload: {
+      token: string;
+      firstName: string;
+      lastName: string;
+      password: string;
+      specializationId?: number;
+      experienceYears?: number;
+      dob?: string;
+      bloodGroup?: BloodGroup;
+      heightCm?: number;
+      weightKg?: number;
+    } = {
+      token,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       password,
-      ...(invitation?.role === "DOCTOR"
-        ? {
-            specializationId: Number(specializationId),
-            experienceYears: Number(experienceYears),
-          }
-        : {}),
-      ...(invitation?.role === "PATIENT"
-        ? {
-            dob,
-            heightCm: Number(heightCm),
-            weightKg: Number(weightKg),
-            bloodGroup: bloodGroup as BloodGroup,
-          }
-        : {}),
-    });
+    };
 
+    if (invitation.role === "DOCTOR") {
+      payload.specializationId = Number(specializationId);
+      payload.experienceYears = Number(experienceYears);
+    } else if (invitation.role === "PATIENT") {
+      payload.dob = dob;
+      payload.bloodGroup = bloodGroup as BloodGroup;
+      payload.heightCm = Number(heightCm);
+      payload.weightKg = Number(weightKg);
+    }
+
+    const res = await acceptInvitationApi(payload);
     setIsSubmitting(false);
 
     if (res.success) {
@@ -239,7 +240,6 @@ export const AcceptInvitationPage: React.FC = () => {
         message: "Account registered successfully! You can now log in.",
       });
 
-      // Redirect user to login page
       setTimeout(() => {
         navigate("/login");
       }, 1200);
@@ -259,29 +259,29 @@ export const AcceptInvitationPage: React.FC = () => {
   // State when no token exists in the URL
   if (!token) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
-        <div className="w-full max-w-md bg-white/90 border border-stone-200/80 rounded-3xl p-6 sm:p-8 shadow-xl shadow-stone-200/60 backdrop-blur-2xl text-center space-y-6 animate-in fade-in duration-300">
-          <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-2xs">
-            <AlertTriangle className="w-7 h-7" />
+      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-md bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-6 sm:p-8 shadow-xs text-center space-y-5 text-[#141413]">
+          <div className="w-11 h-11 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#8E2A22] flex items-center justify-center mx-auto shadow-xs">
+            <AlertTriangle className="w-5 h-5" />
           </div>
 
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-stone-900 tracking-tight m-0">
+          <div className="space-y-1.5">
+            <h1 className="text-xl font-semibold text-[#141413] tracking-tight m-0">
               Invalid Invitation Link
             </h1>
-            <p className="text-sm text-stone-500 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#141413]/60 leading-relaxed m-0">
               No valid invitation token was detected in your link. Please verify that you opened the full URL provided in your invitation email.
             </p>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 text-xs text-stone-600 text-left space-y-1.5">
-            <p className="font-bold text-stone-800">Expected link format:</p>
-            <code className="text-amber-800 text-[11px] block font-mono break-all bg-stone-100 px-2.5 py-1 rounded-xl">
+          <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs text-[#141413]/70 text-left space-y-1">
+            <p className="font-semibold text-[#141413] m-0">Expected link format:</p>
+            <code className="text-[#141413] text-[11px] block font-mono break-all">
               /accept-invitation?token=&lt;token&gt;
             </code>
           </div>
 
-          <Button variant="secondary" fullWidth onClick={() => navigate("/login")} className="py-3">
+          <Button variant="secondary" fullWidth onClick={() => navigate("/login")}>
             Go to Login Page
           </Button>
         </div>
@@ -292,10 +292,10 @@ export const AcceptInvitationPage: React.FC = () => {
   // Loading state while the invitation's role/email is being resolved
   if (isLoadingInvitation) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col items-center gap-3 text-stone-500">
-          <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
-          <span className="text-sm font-semibold">Verifying your invitation...</span>
+      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="flex flex-col items-center gap-3 text-[#141413]/60">
+          <Loader2 className="w-6 h-6 animate-spin text-[#141413]" />
+          <span className="text-xs font-medium text-[#141413]">Verifying your invitation...</span>
         </div>
       </div>
     );
@@ -304,22 +304,22 @@ export const AcceptInvitationPage: React.FC = () => {
   // Invitation is invalid/expired/used/revoked
   if (invitationError || !invitation) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
-        <div className="w-full max-w-md bg-white/90 border border-stone-200/80 rounded-3xl p-6 sm:p-8 shadow-xl shadow-stone-200/60 backdrop-blur-2xl text-center space-y-6 animate-in fade-in duration-300">
-          <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-2xs">
-            <AlertTriangle className="w-7 h-7" />
+      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-md bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-6 sm:p-8 shadow-xs text-center space-y-5 text-[#141413]">
+          <div className="w-11 h-11 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#8E2A22] flex items-center justify-center mx-auto shadow-xs">
+            <AlertTriangle className="w-5 h-5" />
           </div>
 
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-stone-900 tracking-tight m-0">
+          <div className="space-y-1.5">
+            <h1 className="text-xl font-semibold text-[#141413] tracking-tight m-0">
               Invitation Unavailable
             </h1>
-            <p className="text-sm text-stone-500 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#141413]/60 leading-relaxed m-0">
               {invitationError || "This invitation link is invalid or has expired."}
             </p>
           </div>
 
-          <Button variant="secondary" fullWidth onClick={() => navigate("/login")} className="py-3">
+          <Button variant="secondary" fullWidth onClick={() => navigate("/login")}>
             Go to Login Page
           </Button>
         </div>
@@ -328,35 +328,31 @@ export const AcceptInvitationPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
-      {/* Ambient warm lighting accents */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/3 w-80 h-80 bg-orange-200/20 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="w-full max-w-lg relative z-10">
-        <div className="bg-white/90 border border-stone-200/80 rounded-3xl p-6 sm:p-10 shadow-xl shadow-stone-200/60 backdrop-blur-2xl transition-all">
+    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-lg">
+        <div className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-6 sm:p-8 shadow-xs text-[#141413]">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/80 mb-4 shadow-sm text-amber-600">
-              <UserPlus className="w-7 h-7" />
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-11 h-11 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] mb-3 text-[#141413] shadow-xs">
+              <UserPlus className="w-5 h-5" />
             </div>
 
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200/80 text-[11px] font-bold text-amber-900 mb-2 shadow-2xs">
-              <Sparkles className="w-3 h-3 text-amber-600" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#FAF8F5] border border-[#D8D0BF] text-[11px] font-medium text-[#141413] mb-2">
+              <Sparkles className="w-3 h-3 text-[#141413]" />
               <span>Invitation Verified &bull; {invitation.role === "DOCTOR" ? "Doctor" : "Patient"} Account</span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-900 m-0 mb-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-[#141413] m-0 mb-1">
               Complete Your Registration
             </h1>
-            <p className="text-sm text-stone-500 leading-relaxed max-w-sm mx-auto">
+            <p className="text-xs sm:text-sm text-[#141413]/60 leading-relaxed max-w-sm mx-auto m-0">
               You've been invited to join DocPulse as <strong>{invitation.email}</strong>. Fill in your details below to activate your account.
             </p>
           </div>
 
           {/* General Error Banner */}
           {errors.general && (
-            <div className="mb-6">
+            <div className="mb-5">
               <Alert variant="error" title="Registration Error">
                 {errors.general}
               </Alert>
@@ -366,11 +362,11 @@ export const AcceptInvitationPage: React.FC = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* Name Fields Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* First Name */}
               <FormField label="First Name" required error={errors.firstName}>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
                     <User className="w-4 h-4" />
                   </div>
                   <TextInput
@@ -384,7 +380,7 @@ export const AcceptInvitationPage: React.FC = () => {
                     placeholder="John"
                     disabled={isSubmitting}
                     hasError={!!errors.firstName}
-                    className="pl-10 pr-3"
+                    className="pl-9 pr-3"
                   />
                 </div>
               </FormField>
@@ -392,7 +388,7 @@ export const AcceptInvitationPage: React.FC = () => {
               {/* Last Name */}
               <FormField label="Last Name" required error={errors.lastName}>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
                     <User className="w-4 h-4" />
                   </div>
                   <TextInput
@@ -406,7 +402,7 @@ export const AcceptInvitationPage: React.FC = () => {
                     placeholder="Doe"
                     disabled={isSubmitting}
                     hasError={!!errors.lastName}
-                    className="pl-10 pr-3"
+                    className="pl-9 pr-3"
                   />
                 </div>
               </FormField>
@@ -415,7 +411,7 @@ export const AcceptInvitationPage: React.FC = () => {
             {/* Password */}
             <FormField label="Choose Password" required error={errors.password}>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
                   <Lock className="w-4 h-4" />
                 </div>
                 <TextInput
@@ -429,12 +425,12 @@ export const AcceptInvitationPage: React.FC = () => {
                   placeholder="••••••••"
                   disabled={isSubmitting}
                   hasError={!!errors.password}
-                  className="pl-10 pr-11"
+                  className="pl-9 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-stone-400 hover:text-stone-600 transition-colors cursor-pointer"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#141413]/40 hover:text-[#141413] transition-colors cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -447,7 +443,7 @@ export const AcceptInvitationPage: React.FC = () => {
             {/* Confirm Password */}
             <FormField label="Confirm Password" required error={errors.confirmPassword}>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
                   <Lock className="w-4 h-4" />
                 </div>
                 <TextInput
@@ -461,12 +457,12 @@ export const AcceptInvitationPage: React.FC = () => {
                   placeholder="••••••••"
                   disabled={isSubmitting}
                   hasError={!!errors.confirmPassword}
-                  className="pl-10 pr-11"
+                  className="pl-9 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-stone-400 hover:text-stone-600 transition-colors cursor-pointer"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#141413]/40 hover:text-[#141413] transition-colors cursor-pointer"
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -475,15 +471,15 @@ export const AcceptInvitationPage: React.FC = () => {
 
             {/* Role-specific fields */}
             {invitation.role === "DOCTOR" && (
-              <div className="pt-2 border-t border-stone-100 space-y-4">
-                <p className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
-                  <Stethoscope className="w-3.5 h-3.5 text-amber-600" />
+              <div className="pt-2 border-t border-[#D8D0BF] space-y-3.5">
+                <p className="text-xs font-semibold text-[#141413] flex items-center gap-1.5 m-0">
+                  <Stethoscope className="w-3.5 h-3.5 text-[#141413]/70" />
                   <span>Doctor Profile</span>
                 </p>
 
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                    Specialization <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-medium text-[#141413] mb-1">
+                    Specialization <span className="text-[#8E2A22]">*</span>
                   </label>
                   <select
                     value={specializationId}
@@ -493,10 +489,10 @@ export const AcceptInvitationPage: React.FC = () => {
                         setErrors((prev) => ({ ...prev, specializationId: undefined }));
                     }}
                     disabled={isSubmitting}
-                    className={`w-full px-3 py-2.5 rounded-xl bg-white border text-sm text-stone-900 focus:outline-none focus:ring-2 shadow-2xs transition-all ${
+                    className={`w-full px-3 py-2 rounded-lg bg-[#FAF8F5] border text-xs sm:text-sm text-[#141413] focus:outline-none focus:border-[#141413] transition-all ${
                       errors.specializationId
-                        ? "border-rose-400 focus:ring-rose-500/20"
-                        : "border-stone-200 focus:border-amber-500 focus:ring-amber-500/20"
+                        ? "border-[#8E2A22] text-[#8E2A22]"
+                        : "border-[#D8D0BF]"
                     }`}
                   >
                     <option value="">Select a specialization</option>
@@ -507,7 +503,7 @@ export const AcceptInvitationPage: React.FC = () => {
                     ))}
                   </select>
                   {errors.specializationId && (
-                    <p className="mt-1 text-xs text-rose-600 font-medium">{errors.specializationId}</p>
+                    <p className="mt-1 text-xs text-[#8E2A22] font-medium">{errors.specializationId}</p>
                   )}
                 </div>
 
@@ -531,13 +527,13 @@ export const AcceptInvitationPage: React.FC = () => {
             )}
 
             {invitation.role === "PATIENT" && (
-              <div className="pt-2 border-t border-stone-100 space-y-4">
-                <p className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
-                  <HeartPulse className="w-3.5 h-3.5 text-amber-600" />
+              <div className="pt-2 border-t border-[#D8D0BF] space-y-3.5">
+                <p className="text-xs font-semibold text-[#141413] flex items-center gap-1.5 m-0">
+                  <HeartPulse className="w-3.5 h-3.5 text-[#141413]/70" />
                   <span>Patient Profile</span>
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <FormField label="Date of Birth" required error={errors.dob}>
                     <TextInput
                       type="date"
@@ -553,8 +549,8 @@ export const AcceptInvitationPage: React.FC = () => {
                   </FormField>
 
                   <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                      Blood Group <span className="text-rose-500">*</span>
+                    <label className="block text-xs font-medium text-[#141413] mb-1">
+                      Blood Group <span className="text-[#8E2A22]">*</span>
                     </label>
                     <select
                       value={bloodGroup}
@@ -564,10 +560,10 @@ export const AcceptInvitationPage: React.FC = () => {
                           setErrors((prev) => ({ ...prev, bloodGroup: undefined }));
                       }}
                       disabled={isSubmitting}
-                      className={`w-full px-3 py-2.5 rounded-xl bg-white border text-sm text-stone-900 focus:outline-none focus:ring-2 shadow-2xs transition-all ${
+                      className={`w-full px-3 py-2 rounded-lg bg-[#FAF8F5] border text-xs sm:text-sm text-[#141413] focus:outline-none focus:border-[#141413] transition-all ${
                         errors.bloodGroup
-                          ? "border-rose-400 focus:ring-rose-500/20"
-                          : "border-stone-200 focus:border-amber-500 focus:ring-amber-500/20"
+                          ? "border-[#8E2A22] text-[#8E2A22]"
+                          : "border-[#D8D0BF]"
                       }`}
                     >
                       <option value="">Select</option>
@@ -578,7 +574,7 @@ export const AcceptInvitationPage: React.FC = () => {
                       ))}
                     </select>
                     {errors.bloodGroup && (
-                      <p className="mt-1 text-xs text-rose-600 font-medium">{errors.bloodGroup}</p>
+                      <p className="mt-1 text-xs text-[#8E2A22] font-medium">{errors.bloodGroup}</p>
                     )}
                   </div>
 
@@ -621,8 +617,8 @@ export const AcceptInvitationPage: React.FC = () => {
 
             {/* Security note */}
             <div className="py-1">
-              <p className="text-[11px] text-stone-500 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+              <p className="text-[11px] text-[#141413]/60 flex items-center gap-1.5 m-0">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#141413]/70" />
                 <span>Your email and role are pre-assigned by the administrator.</span>
               </p>
             </div>
@@ -633,7 +629,7 @@ export const AcceptInvitationPage: React.FC = () => {
               fullWidth
               isLoading={isSubmitting}
               loadingText="Creating Account..."
-              className="mt-3 py-3.5"
+              className="mt-2 py-2.5"
             >
               <span>Create & Activate Account</span>
               <ArrowRight className="w-4 h-4" />
@@ -641,10 +637,10 @@ export const AcceptInvitationPage: React.FC = () => {
           </form>
 
           {/* Already have an account */}
-          <div className="mt-6 pt-4 border-t border-stone-100 text-center">
+          <div className="mt-5 pt-4 border-t border-[#D8D0BF] text-center">
             <button
               onClick={() => navigate("/login")}
-              className="text-xs text-stone-500 hover:text-amber-700 font-semibold transition-colors cursor-pointer"
+              className="text-xs text-[#141413]/70 hover:text-[#141413] hover:underline font-medium transition-colors cursor-pointer"
             >
               Already registered? Sign in instead &rarr;
             </button>

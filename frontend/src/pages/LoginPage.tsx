@@ -39,24 +39,19 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
-      {/* Background ambient warm lighting */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-orange-200/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-rose-200/20 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="w-full max-w-md relative z-10">
-        <Card variant="auth" className="transition-all">
+    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-md">
+        <Card variant="auth" className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-7 sm:p-9 shadow-xs text-[#141413]">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/80 mb-4 shadow-sm text-amber-600">
-              <LockKeyhole className="w-7 h-7" />
+            <div className="inline-flex items-center justify-center w-11 h-11 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] mb-4 text-[#141413] shadow-xs">
+              <LockKeyhole className="w-5 h-5" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 m-0 mb-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-[#141413] m-0 mb-1.5">
               Welcome to DocPulse
             </h1>
-            <p className="text-sm text-stone-500">
-              Sign in to manage appointments, patients, and healthcare services
+            <p className="text-xs sm:text-sm text-[#141413]/60 max-w-xs mx-auto leading-relaxed m-0">
+              Sign in to manage appointments, patients, and healthcare consultations.
             </p>
           </div>
 
@@ -65,7 +60,7 @@ export const LoginPage: React.FC = () => {
             {/* Email Field */}
             <FormField label="Email Address" error={errors.email}>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
                   <Mail className="w-4 h-4" />
                 </div>
                 <TextInput
@@ -76,7 +71,7 @@ export const LoginPage: React.FC = () => {
                     if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
                   }}
                   placeholder="name@example.com"
-                  className="pl-10 pr-4"
+                  className="pl-9 pr-3 py-2"
                   hasError={!!errors.email}
                   disabled={isLoading}
                 />
@@ -86,7 +81,7 @@ export const LoginPage: React.FC = () => {
             {/* Password Field */}
             <FormField label="Password" error={errors.password}>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
                   <Lock className="w-4 h-4" />
                 </div>
                 <TextInput
@@ -97,14 +92,14 @@ export const LoginPage: React.FC = () => {
                     if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
                   }}
                   placeholder="••••••••"
-                  className="pl-10 pr-11"
+                  className="pl-9 pr-10 py-2"
                   hasError={!!errors.password}
                   disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-stone-400 hover:text-stone-600 transition-colors cursor-pointer"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#141413]/40 hover:text-[#141413] transition-colors cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -117,7 +112,7 @@ export const LoginPage: React.FC = () => {
               fullWidth
               isLoading={isLoading}
               loadingText="Authenticating..."
-              className="mt-2 py-3"
+              className="mt-2 py-2.5"
             >
               <span>Sign In</span>
               <ArrowRight className="w-4 h-4" />

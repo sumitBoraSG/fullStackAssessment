@@ -40,8 +40,8 @@ describe("App - React 19 render-phase side-effect canary (non-admin hitting /adm
     await waitFor(() => expect(window.location.pathname).toBe("/dashboard"));
     expect(await screen.findByText(/Access denied\. Admin privileges are required/i)).toBeInTheDocument();
 
-    const stateUpdateWarning = consoleErrorSpy.mock.calls.find((args) =>
-      args.some((a) => typeof a === "string" && a.includes("while rendering a different component")),
+    const stateUpdateWarning = consoleErrorSpy.mock.calls.find((args: unknown[]) =>
+      args.some((a: unknown) => typeof a === "string" && a.includes("while rendering a different component")),
     );
     expect(stateUpdateWarning).toBeUndefined();
   });
@@ -67,8 +67,8 @@ describe("App - React 19 render-phase side-effect canary (non-admin hitting /adm
     rerender(<App />);
     rerender(<App />);
 
-    const stateUpdateWarning = consoleErrorSpy.mock.calls.find((args) =>
-      args.some((a) => typeof a === "string" && a.includes("while rendering a different component")),
+    const stateUpdateWarning = consoleErrorSpy.mock.calls.find((args: unknown[]) =>
+      args.some((a: unknown) => typeof a === "string" && a.includes("while rendering a different component")),
     );
     expect(stateUpdateWarning).toBeUndefined();
     expect(window.location.pathname).toBe("/dashboard");

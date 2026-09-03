@@ -8,10 +8,11 @@ import { USER_KEY } from "../api/apiClient";
 import { defaultAdminUser, defaultDoctorUser, defaultPatientUser } from "../test/msw/handlers";
 import { ProfilePage } from "./ProfilePage";
 import { Toast } from "../components/Toast";
+import type { User } from "../types/auth";
 
 const BASE = "http://localhost:3000";
 
-function renderProfileAs(user: typeof defaultPatientUser) {
+function renderProfileAs(user: User) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   return renderWithProviders(
     <>

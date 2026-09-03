@@ -14,12 +14,6 @@ const AppContent: React.FC = () => {
   const { isAuthenticated, user, setNotification } = useAuth();
   const { path, navigate } = useRouter();
 
-  // Non-admin users hitting /admin* get redirected to /dashboard with a
-  // toast. This must run as an effect, not directly in the render body:
-  // calling navigate()/setNotification() during render triggers a setState
-  // on RouterProvider/AuthProvider while AppContent itself is still
-  // rendering, which React flags with "Cannot update a component while
-  // rendering a different component" (see React's rules of render purity).
   React.useEffect(() => {
     if (isAuthenticated && user?.role !== "ADMIN" && path.startsWith("/admin")) {
       navigate("/dashboard", { replace: true });
@@ -33,13 +27,13 @@ const AppContent: React.FC = () => {
   // Public route: Accept Invitation
   if (path.startsWith("/accept-invitation")) {
     return (
-      <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col font-sans">
+      <div className="min-h-screen bg-[#F0EEE6] text-[#141413] flex flex-col font-sans">
         <Toast />
         <Navbar />
         <main className="flex-1">
           <AcceptInvitationPage />
         </main>
-        <footer className="py-6 border-t border-stone-200/80 text-center text-xs text-stone-500 bg-white/40">
+        <footer className="py-6 border-t border-[#D8D0BF] text-center text-xs text-[#141413]/50">
           Doctor Appointment & Healthcare Platform &copy; {new Date().getFullYear()} DocPulse
         </footer>
       </div>
@@ -49,13 +43,13 @@ const AppContent: React.FC = () => {
   // If not authenticated, always show LoginPage for all other paths
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col font-sans">
+      <div className="min-h-screen bg-[#F0EEE6] text-[#141413] flex flex-col font-sans">
         <Toast />
         <Navbar />
         <main className="flex-1">
           <LoginPage />
         </main>
-        <footer className="py-6 border-t border-stone-200/80 text-center text-xs text-stone-500 bg-white/40">
+        <footer className="py-6 border-t border-[#D8D0BF] text-center text-xs text-[#141413]/50">
           Doctor Appointment & Healthcare Platform &copy; {new Date().getFullYear()} DocPulse
         </footer>
       </div>
@@ -66,15 +60,14 @@ const AppContent: React.FC = () => {
   // 1. If ADMIN:
   if (user?.role === "ADMIN") {
     if (path === "/dashboard") {
-      // Allow admin to also view regular user session view
       return (
-        <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col font-sans">
+        <div className="min-h-screen bg-[#F0EEE6] text-[#141413] flex flex-col font-sans">
           <Toast />
           <Navbar />
           <main className="flex-1">
             <DashboardPage />
           </main>
-          <footer className="py-6 border-t border-stone-200/80 text-center text-xs text-stone-500 bg-white/40">
+          <footer className="py-6 border-t border-[#D8D0BF] text-center text-xs text-[#141413]/50">
             Doctor Appointment & Healthcare Platform &copy; {new Date().getFullYear()} DocPulse
           </footer>
         </div>
@@ -83,13 +76,13 @@ const AppContent: React.FC = () => {
 
     if (path === "/profile") {
       return (
-        <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col font-sans">
+        <div className="min-h-screen bg-[#F0EEE6] text-[#141413] flex flex-col font-sans">
           <Toast />
           <Navbar />
           <main className="flex-1">
             <ProfilePage />
           </main>
-          <footer className="py-6 border-t border-stone-200/80 text-center text-xs text-stone-500 bg-white/40">
+          <footer className="py-6 border-t border-[#D8D0BF] text-center text-xs text-[#141413]/50">
             Doctor Appointment & Healthcare Platform &copy; {new Date().getFullYear()} DocPulse
           </footer>
         </div>
@@ -98,7 +91,7 @@ const AppContent: React.FC = () => {
 
     // Default landing page for admin is Invitations within AdminLayout
     return (
-      <div className="min-h-screen bg-[#faf8f5] text-stone-900 font-sans">
+      <div className="min-h-screen bg-[#F0EEE6] text-[#141413] font-sans">
         <Toast />
         <AdminLayout>
           <AdminInvitationsPage />
@@ -109,13 +102,13 @@ const AppContent: React.FC = () => {
 
   if (path === "/profile") {
     return (
-      <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col font-sans">
+      <div className="min-h-screen bg-[#F0EEE6] text-[#141413] flex flex-col font-sans">
         <Toast />
         <Navbar />
         <main className="flex-1">
           <ProfilePage />
         </main>
-        <footer className="py-6 border-t border-stone-200/80 text-center text-xs text-stone-500 bg-white/40">
+        <footer className="py-6 border-t border-[#D8D0BF] text-center text-xs text-[#141413]/50">
           Doctor Appointment & Healthcare Platform &copy; {new Date().getFullYear()} DocPulse
         </footer>
       </div>
@@ -123,13 +116,13 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F0EEE6] text-[#141413] flex flex-col font-sans">
       <Toast />
       <Navbar />
       <main className="flex-1">
         <DashboardPage />
       </main>
-      <footer className="py-6 border-t border-stone-200/80 text-center text-xs text-stone-500 bg-white/40">
+      <footer className="py-6 border-t border-[#D8D0BF] text-center text-xs text-[#141413]/50">
         Doctor Appointment & Healthcare Platform &copy; {new Date().getFullYear()} DocPulse
       </footer>
     </div>
@@ -145,4 +138,3 @@ export default function App() {
     </RouterProvider>
   );
 }
-

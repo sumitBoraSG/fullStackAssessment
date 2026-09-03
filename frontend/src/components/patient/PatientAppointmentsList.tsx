@@ -166,38 +166,38 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
       case "PENDING":
         return {
           label: "Pending Approval",
-          classes: "bg-amber-50 text-amber-900 border-amber-200/90",
-          icon: <Clock className="w-3.5 h-3.5 text-amber-600" />,
+          classes: "bg-[#EAE0CE] text-[#4A3B18] border-[#D4C4A8]",
+          icon: <Clock className="w-3 h-3 text-[#7A5B18]" />,
         };
       case "CONFIRMED":
         return {
           label: "Confirmed",
-          classes: "bg-emerald-50 text-emerald-900 border-emerald-200/90",
-          icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+          classes: "bg-[#DCE7DD] text-[#1E3E26] border-[#BED4C1]",
+          icon: <CheckCircle2 className="w-3 h-3 text-[#265330]" />,
         };
       case "COMPLETED":
         return {
           label: "Completed",
-          classes: "bg-blue-50 text-blue-900 border-blue-200/90",
-          icon: <Award className="w-3.5 h-3.5 text-blue-600" />,
+          classes: "bg-[#D8DFE6] text-[#1E2E3E] border-[#BAC6D3]",
+          icon: <Award className="w-3 h-3 text-[#274560]" />,
         };
       case "CANCELLED":
         return {
           label: "Cancelled",
-          classes: "bg-rose-50 text-rose-800 border-rose-200/90",
-          icon: <XCircle className="w-3.5 h-3.5 text-rose-600" />,
+          classes: "bg-[#EEDCDA] text-[#541C18] border-[#DEC0BD]",
+          icon: <XCircle className="w-3 h-3 text-[#7A2420]" />,
         };
       case "REJECTED":
         return {
           label: "Declined",
-          classes: "bg-stone-100 text-stone-700 border-stone-200",
-          icon: <AlertCircle className="w-3.5 h-3.5 text-stone-500" />,
+          classes: "bg-[#DDD7CA] text-[#2D2A24] border-[#CCC4B4]",
+          icon: <AlertCircle className="w-3 h-3 text-[#4D483F]" />,
         };
       default:
         return {
           label: status,
-          classes: "bg-stone-50 text-stone-800 border-stone-200",
-          icon: <Clock className="w-3.5 h-3.5 text-stone-500" />,
+          classes: "bg-[#DDD7CA] text-[#2D2A24] border-[#CCC4B4]",
+          icon: <Clock className="w-3 h-3 text-[#4D483F]" />,
         };
     }
   };
@@ -210,13 +210,22 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
     order !== "ASC";
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Editorial Section Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <p className="text-sm text-stone-500 max-w-xl m-0">
-          Track your upcoming consultations and manage your scheduled healthcare visits.
-        </p>
+        <div>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#141413]/60 block mb-1">
+            Personal Care
+          </span>
+          <h2 className="text-xl sm:text-2xl font-semibold text-[#141413] tracking-tight m-0">
+            My Appointments
+          </h2>
+          <p className="text-xs sm:text-sm text-[#141413]/60 mt-1 max-w-xl leading-relaxed">
+            Track your consultations and manage your scheduled visits.
+          </p>
+        </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="secondary"
             onClick={() => fetchAppointments()}
@@ -237,14 +246,14 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white/90 border border-stone-200/80 rounded-3xl p-4 sm:p-6 shadow-sm backdrop-blur-md space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5">
+      <div className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-4 sm:p-5 shadow-xs space-y-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
           {/* Status Filter (3 cols) */}
-          <div className="lg:col-span-3 relative">
-            <label className="block text-[11px] font-bold text-stone-600 mb-1">Status</label>
+          <div className="lg:col-span-3">
+            <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Status</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
-                <Filter className="w-4 h-4" />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
+                <Filter className="w-3.5 h-3.5" />
               </div>
               <select
                 value={statusFilter}
@@ -252,7 +261,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
                   setStatusFilter(e.target.value as AppointmentStatus | "ALL");
                   setPage(1);
                 }}
-                className="w-full pl-10 pr-8 py-2 rounded-xl bg-stone-50/60 border border-stone-200 text-xs text-stone-900 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
+                className="w-full pl-9 pr-7 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs text-[#141413] focus:outline-none focus:border-[#141413] cursor-pointer"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="PENDING">Pending Approval</option>
@@ -265,15 +274,15 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
           </div>
 
           {/* Date Mode Selector (2 cols) */}
-          <div className="lg:col-span-2 relative">
-            <label className="block text-[11px] font-bold text-stone-600 mb-1">Date Filter</label>
+          <div className="lg:col-span-2">
+            <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Date Filter</label>
             <select
               value={dateFilterType}
               onChange={(e) => {
                 setDateFilterType(e.target.value as "none" | "single" | "range");
                 setPage(1);
               }}
-              className="w-full px-3 py-2 rounded-xl bg-stone-50/60 border border-stone-200 text-xs text-stone-900 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs text-[#141413] focus:outline-none focus:border-[#141413] cursor-pointer"
             >
               <option value="none">Any Date</option>
               <option value="single">Specific Date</option>
@@ -285,7 +294,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
           <div className="lg:col-span-4">
             {dateFilterType === "single" && (
               <div>
-                <label className="block text-[11px] font-bold text-stone-600 mb-1">Select Date</label>
+                <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Select Date</label>
                 <input
                   type="date"
                   value={singleDate}
@@ -293,7 +302,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
                     setSingleDate(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full px-3 py-1.5 rounded-xl bg-stone-50/60 border border-stone-200 text-xs text-stone-900 font-medium"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs text-[#141413]"
                 />
               </div>
             )}
@@ -301,7 +310,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
             {dateFilterType === "range" && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-bold text-stone-600 mb-1">From</label>
+                  <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">From</label>
                   <input
                     type="date"
                     value={dateFrom}
@@ -309,11 +318,11 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
                       setDateFrom(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full px-2.5 py-1.5 rounded-xl bg-stone-50/60 border border-stone-200 text-xs text-stone-900 font-medium"
+                    className="w-full px-2 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs text-[#141413]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-stone-600 mb-1">To</label>
+                  <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">To</label>
                   <input
                     type="date"
                     value={dateTo}
@@ -321,7 +330,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
                       setDateTo(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full px-2.5 py-1.5 rounded-xl bg-stone-50/60 border border-stone-200 text-xs text-stone-900 font-medium"
+                    className="w-full px-2 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs text-[#141413]"
                   />
                 </div>
               </div>
@@ -329,8 +338,8 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
 
             {dateFilterType === "none" && (
               <div>
-                <label className="block text-[11px] font-bold text-stone-400 mb-1">Date Filter Inactive</label>
-                <div className="text-xs text-stone-400 py-2 italic">All upcoming and past dates included</div>
+                <label className="block text-[11px] font-medium text-[#141413]/40 mb-1">Date Filter Inactive</label>
+                <div className="text-xs text-[#141413]/50 py-1.5">All dates included</div>
               </div>
             )}
           </div>
@@ -338,7 +347,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
           {/* Sort By & Order (3 cols) */}
           <div className="lg:col-span-3 grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[11px] font-bold text-stone-600 mb-1 flex items-center gap-1">
+              <label className="block text-[11px] font-medium text-[#141413]/70 mb-1 flex items-center gap-1">
                 <ArrowUpDown className="w-3 h-3" />
                 <span>Sort By</span>
               </label>
@@ -348,7 +357,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
                   setSortBy(e.target.value as "appointmentTime" | "createdAt" | "updatedAt");
                   setPage(1);
                 }}
-                className="w-full px-2.5 py-2 rounded-xl bg-stone-50/60 border border-stone-200 text-xs text-stone-900 font-semibold focus:outline-none cursor-pointer"
+                className="w-full px-2 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs text-[#141413] focus:outline-none cursor-pointer"
               >
                 <option value="appointmentTime">Date/Time</option>
                 <option value="createdAt">Booked At</option>
@@ -356,14 +365,14 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-stone-600 mb-1">Order</label>
+              <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Order</label>
               <select
                 value={order}
                 onChange={(e) => {
                   setOrder(e.target.value as "ASC" | "DESC");
                   setPage(1);
                 }}
-                className="w-full px-2.5 py-2 rounded-xl bg-stone-50/60 border border-stone-200 text-xs text-stone-900 font-semibold focus:outline-none cursor-pointer"
+                className="w-full px-2 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs text-[#141413] focus:outline-none cursor-pointer"
               >
                 <option value="ASC">Ascending</option>
                 <option value="DESC">Descending</option>
@@ -374,11 +383,11 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
 
         {/* Active Filters Clear Row */}
         {hasActiveFilters && (
-          <div className="flex items-center justify-between pt-2 border-t border-stone-100 text-xs">
-            <span className="text-stone-500 font-medium">Filtered results applied</span>
+          <div className="flex items-center justify-between pt-2.5 border-t border-[#D8D0BF] text-xs">
+            <span className="text-[#141413]/60 font-normal">Filtered results applied</span>
             <button
               onClick={handleClearFilters}
-              className="text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer"
+              className="text-[#141413] hover:underline font-medium cursor-pointer"
             >
               Reset all filters
             </button>
@@ -391,25 +400,25 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
 
       {/* Appointment Cards Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white/80 border border-stone-200/60 rounded-3xl p-6 space-y-4 animate-pulse">
+            <div key={i} className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-5 space-y-4 animate-pulse">
               <div className="flex justify-between items-center">
-                <div className="w-28 h-6 bg-stone-200 rounded-full" />
-                <div className="w-20 h-5 bg-stone-100 rounded-full" />
+                <div className="w-24 h-5 bg-[#D8D0BF]/60 rounded-md" />
+                <div className="w-16 h-4 bg-[#D8D0BF]/40 rounded-md" />
               </div>
               <div className="space-y-2">
-                <div className="h-5 w-1/2 bg-stone-200 rounded-lg" />
-                <div className="h-4 w-1/3 bg-stone-100 rounded-lg" />
+                <div className="h-4 w-1/2 bg-[#D8D0BF]/60 rounded-md" />
+                <div className="h-3 w-1/3 bg-[#D8D0BF]/40 rounded-md" />
               </div>
-              <div className="h-10 w-full bg-stone-100 rounded-2xl" />
+              <div className="h-8 w-full bg-[#D8D0BF]/60 rounded-lg" />
             </div>
           ))}
         </div>
       ) : appointments.length === 0 ? (
         <EmptyState
           icon={CalendarCheck}
-          color="amber"
+          color="stone"
           title="No Appointments Found"
           description={
             hasActiveFilters
@@ -418,7 +427,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
           }
           action={
             (hasActiveFilters || onNavigateToBooking) && (
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-2.5">
                 {hasActiveFilters && (
                   <Button variant="secondary" onClick={handleClearFilters}>
                     Clear Filters
@@ -434,7 +443,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {appointments.map((apt) => {
             const badge = getStatusBadge(apt.status);
             const isCancellable =
@@ -444,55 +453,55 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
             return (
               <div
                 key={apt.id}
-                className="bg-white/90 border border-stone-200/80 rounded-3xl p-6 shadow-sm backdrop-blur-md hover:shadow-md transition-all flex flex-col justify-between space-y-5"
+                className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-5 shadow-xs hover:border-[#141413]/30 transition-all flex flex-col justify-between space-y-4 text-[#141413]"
               >
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   {/* Top Bar: Status Badge & ID */}
                   <div className="flex items-center justify-between">
                     <span
-                      className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full border shadow-2xs ${badge.classes}`}
+                      className={`inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-md border ${badge.classes}`}
                     >
                       {badge.icon}
                       <span>{badge.label}</span>
                     </span>
 
-                    <span className="text-[11px] font-mono text-stone-400">
+                    <span className="text-[10px] font-mono text-[#141413]/50">
                       Ref #{apt.id}
                     </span>
                   </div>
 
                   {/* Doctor Info */}
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0 shadow-2xs font-bold text-sm">
-                      <Stethoscope className="w-6 h-6" />
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#141413] flex items-center justify-center shrink-0 shadow-xs font-medium text-xs">
+                      <Stethoscope className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-extrabold text-stone-900 tracking-tight">
+                      <h3 className="text-base font-semibold text-[#141413] tracking-tight m-0">
                         Dr. {apt.doctor.firstName} {apt.doctor.lastName}
                       </h3>
-                      <div className="flex items-center gap-1.5 text-xs text-amber-900 font-semibold mt-0.5">
+                      <div className="text-xs text-[#141413]/80 font-medium mt-0.5">
                         <span>{apt.doctor.specialization}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-[11px] text-stone-500 mt-1">
-                        <Award className="w-3.5 h-3.5 text-stone-400" />
+                      <div className="flex items-center gap-1.5 text-[11px] text-[#141413]/60 mt-1">
+                        <Award className="w-3 h-3 text-[#141413]/40" />
                         <span>{apt.doctor.experienceYears} years experience</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Time & Date Box */}
-                  <div className="p-3.5 rounded-2xl bg-stone-50/80 border border-stone-200/80 grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-[11px] font-bold text-stone-500 block">Date</span>
-                      <div className="flex items-center gap-1.5 font-bold text-stone-900 mt-0.5">
-                        <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-[10px] font-medium text-[#141413]/60 block uppercase tracking-wider">Date</span>
+                      <div className="flex items-center gap-1.5 font-medium text-[#141413] mt-0.5">
+                        <Calendar className="w-3.5 h-3.5 text-[#141413]/60" />
                         <span>{formatDisplayDate(apt.date)}</span>
                       </div>
                     </div>
                     <div>
-                      <span className="text-[11px] font-bold text-stone-500 block">Scheduled Time</span>
-                      <div className="flex items-center gap-1.5 font-bold text-stone-900 mt-0.5">
-                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-[10px] font-medium text-[#141413]/60 block uppercase tracking-wider">Scheduled Time</span>
+                      <div className="flex items-center gap-1.5 font-medium text-[#141413] mt-0.5">
+                        <Clock className="w-3.5 h-3.5 text-[#141413]/60" />
                         <span>
                           {formatDisplayTime(apt.startTime)} – {formatDisplayTime(apt.endTime)}
                         </span>
@@ -502,15 +511,15 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
                 </div>
 
                 {/* Bottom Actions & Timestamps */}
-                <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
-                  <span className="text-[11px] text-stone-400">
-                    Booked on {new Date(apt.createdAt).toLocaleDateString()}
+                <div className="pt-3 border-t border-[#D8D0BF] flex items-center justify-between text-xs">
+                  <span className="text-[11px] text-[#141413]/50">
+                    Booked {new Date(apt.createdAt).toLocaleDateString()}
                   </span>
 
                   {isCancellable && (
                     <button
                       onClick={() => setCancellingAppointment(apt)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-rose-700 hover:text-rose-900 hover:bg-rose-50 border border-rose-200/60 font-bold transition-all text-xs cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[#8E2A22] hover:bg-[#EEDCDA] border border-[#DEC0BD] font-medium transition-all text-xs cursor-pointer"
                     >
                       <XCircle className="w-3.5 h-3.5" />
                       <span>Cancel Appointment</span>
@@ -525,25 +534,25 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
 
       {/* Pagination Footer */}
       {!isLoading && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 border-t border-stone-200/80 text-xs text-stone-500">
+        <div className="flex items-center justify-between pt-4 border-t border-[#D8D0BF] text-xs text-[#141413]/60">
           <span>
             Showing Page <strong>{pagination.page}</strong> of <strong>{pagination.totalPages}</strong> ({pagination.total} Appointments)
           </span>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="p-2 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs"
+              className="p-1.5 rounded-lg bg-[#E3DBCC] border border-[#D8D0BF] hover:bg-[#D9D1C1] text-[#141413] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
               disabled={page >= pagination.totalPages}
-              className="p-2 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs"
+              className="p-1.5 rounded-lg bg-[#E3DBCC] border border-[#D8D0BF] hover:bg-[#D9D1C1] text-[#141413] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -581,29 +590,29 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
         }
       >
         {cancellingAppointment && (
-          <div className="space-y-5">
-            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/80 text-xs space-y-2">
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-xl bg-[#E3DBCC] border border-[#D8D0BF] text-xs space-y-2 text-[#141413]">
               <div className="flex justify-between">
-                <span className="text-stone-500">Doctor:</span>
-                <span className="font-bold text-stone-900">
+                <span className="text-[#141413]/60">Doctor:</span>
+                <span className="font-semibold text-[#141413]">
                   Dr. {cancellingAppointment.doctor.firstName} {cancellingAppointment.doctor.lastName}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-stone-500">Scheduled Date:</span>
-                <span className="font-bold text-stone-900">
+                <span className="text-[#141413]/60">Scheduled Date:</span>
+                <span className="font-semibold text-[#141413]">
                   {formatDisplayDate(cancellingAppointment.date)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-stone-500">Time:</span>
-                <span className="font-bold text-stone-900">
+                <span className="text-[#141413]/60">Time:</span>
+                <span className="font-semibold text-[#141413]">
                   {formatDisplayTime(cancellingAppointment.startTime)} – {formatDisplayTime(cancellingAppointment.endTime)}
                 </span>
               </div>
             </div>
 
-            <p className="text-xs text-stone-600 leading-relaxed">
+            <p className="text-xs text-[#141413]/70 leading-relaxed m-0">
               Are you sure you want to cancel this appointment request? The slot will become available for other patients.
             </p>
           </div>

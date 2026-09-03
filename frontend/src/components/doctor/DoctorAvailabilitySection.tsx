@@ -84,7 +84,6 @@ export const DoctorAvailabilitySection: React.FC = () => {
     if (res.success) {
       setSuccessMsg("Availability slot added successfully!");
       fetchAvailabilities();
-      // Auto clear success message after 4s
       setTimeout(() => setSuccessMsg(null), 4000);
     } else {
       setErrorMsg(res.message || "Failed to add availability slot.");
@@ -117,7 +116,6 @@ export const DoctorAvailabilitySection: React.FC = () => {
     }
   };
 
-  // Group availabilities by date
   const groupedAvailabilities = availabilities.reduce<Record<string, AvailabilitySlot[]>>(
     (acc, slot) => {
       const key = slot.date;
@@ -131,11 +129,20 @@ export const DoctorAvailabilitySection: React.FC = () => {
   const sortedDates = Object.keys(groupedAvailabilities).sort();
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Editorial Section Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <p className="text-sm text-stone-500 max-w-xl m-0">
-          Set the time slots when patients can book you for a consultation.
-        </p>
+        <div>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#141413]/60 block mb-1">
+            Clinical Schedule
+          </span>
+          <h2 className="text-xl sm:text-2xl font-semibold text-[#141413] tracking-tight m-0">
+            My Availability
+          </h2>
+          <p className="text-xs sm:text-sm text-[#141413]/60 mt-1 max-w-xl leading-relaxed">
+            Configure consultation windows when patients can book appointments with you.
+          </p>
+        </div>
         <Button
           variant="secondary"
           onClick={fetchAvailabilities}
@@ -148,93 +155,93 @@ export const DoctorAvailabilitySection: React.FC = () => {
       </div>
 
       {/* Form & List Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Form Column (5 cols) */}
         <div className="lg:col-span-5">
-          <div className="bg-white/90 border border-stone-200/80 rounded-3xl p-6 sm:p-7 shadow-lg shadow-stone-200/50 backdrop-blur-xl sticky top-6">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-stone-100">
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 shadow-2xs">
-                <CalendarCheck className="w-5 h-5" />
+          <div className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-5 sm:p-6 shadow-xs sticky top-6 text-[#141413]">
+            <div className="flex items-center gap-3 mb-5 pb-3.5 border-b border-[#D8D0BF]">
+              <div className="w-9 h-9 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] flex items-center justify-center text-[#141413] shadow-xs">
+                <CalendarCheck className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-stone-900 tracking-tight">
+                <h3 className="text-base font-semibold text-[#141413] tracking-tight m-0">
                   Set Availability
-                </h2>
-                <p className="text-xs text-stone-500">Add a new time slot to your calendar</p>
+                </h3>
+                <p className="text-xs text-[#141413]/60 m-0">Publish an appointment window</p>
               </div>
             </div>
 
             {/* Error Notification */}
             {errorMsg && (
-              <div className="mb-4">
+              <div className="mb-3.5">
                 <Alert variant="error">{errorMsg}</Alert>
               </div>
             )}
 
             {/* Success Notification */}
             {successMsg && (
-              <div className="mb-4">
+              <div className="mb-3.5">
                 <Alert variant="success">{successMsg}</Alert>
               </div>
             )}
 
-            <form onSubmit={handleAddAvailability} className="space-y-4" noValidate>
+            <form onSubmit={handleAddAvailability} className="space-y-3.5" noValidate>
               {/* Date */}
               <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1.5 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                <label className="block text-xs font-medium text-[#141413] mb-1 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-[#141413]/60" />
                   <span>Date</span>
-                  <span className="text-rose-500">*</span>
+                  <span className="text-[#8E2A22]">*</span>
                 </label>
                 <input
                   type="date"
                   min={getTodayString()}
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50/50 border border-stone-200 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+                  className="w-full px-3 py-2 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#141413] text-xs sm:text-sm focus:outline-none focus:border-[#141413] focus:ring-1 focus:ring-[#141413] transition-all"
                   required
                 />
               </div>
 
               {/* Times Grid */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 {/* Start Time */}
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1.5 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-stone-400" />
+                  <label className="block text-xs font-medium text-[#141413] mb-1 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#141413]/60" />
                     <span>Start Time</span>
-                    <span className="text-rose-500">*</span>
+                    <span className="text-[#8E2A22]">*</span>
                   </label>
                   <input
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-stone-50/50 border border-stone-200 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+                    className="w-full px-3 py-2 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#141413] text-xs sm:text-sm focus:outline-none focus:border-[#141413] focus:ring-1 focus:ring-[#141413] transition-all"
                     required
                   />
                 </div>
 
                 {/* End Time */}
                 <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1.5 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-stone-400" />
+                  <label className="block text-xs font-medium text-[#141413] mb-1 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#141413]/60" />
                     <span>End Time</span>
-                    <span className="text-rose-500">*</span>
+                    <span className="text-[#8E2A22]">*</span>
                   </label>
                   <input
                     type="time"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-stone-50/50 border border-stone-200 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+                    className="w-full px-3 py-2 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#141413] text-xs sm:text-sm focus:outline-none focus:border-[#141413] focus:ring-1 focus:ring-[#141413] transition-all"
                     required
                   />
                 </div>
               </div>
 
               {/* Preview helper pill */}
-              <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200/50 text-[11px] text-amber-900 flex items-center justify-between">
-                <span className="text-stone-500">Slot duration:</span>
-                <span className="font-semibold text-amber-900">
+              <div className="p-2.5 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[11px] text-[#141413] flex items-center justify-between">
+                <span className="text-[#141413]/60">Slot duration:</span>
+                <span className="font-semibold text-[#141413]">
                   {formatDisplayTime(startTime)} – {formatDisplayTime(endTime)}
                 </span>
               </div>
@@ -242,10 +249,11 @@ export const DoctorAvailabilitySection: React.FC = () => {
               {/* Submit Button */}
               <Button
                 type="submit"
+                variant="primary"
                 isLoading={isSubmitting}
                 loadingText="Adding Slot..."
                 fullWidth
-                className="mt-2"
+                className="mt-1"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Availability Slot</span>
@@ -257,23 +265,23 @@ export const DoctorAvailabilitySection: React.FC = () => {
         {/* Availability List Column (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-lg font-bold text-stone-900 tracking-tight flex items-center gap-2">
+            <h3 className="text-base font-semibold text-[#141413] tracking-tight flex items-center gap-2 m-0">
               <span>Your Availability</span>
-              <span className="px-2 py-0.5 text-xs rounded-full bg-stone-200/80 text-stone-700 font-semibold">
+              <span className="px-2 py-0.5 text-xs rounded-md bg-[#FAF8F5] border border-[#D8D0BF] text-[#141413] font-medium">
                 {availabilities.length}
               </span>
-            </h2>
+            </h3>
           </div>
 
           {/* Loading Skeleton */}
           {isLoading && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[1, 2].map((i) => (
-                <div key={i} className="bg-white/80 border border-stone-200/60 rounded-3xl p-6 space-y-3 animate-pulse">
-                  <div className="h-4 w-36 bg-stone-200 rounded-lg" />
+                <div key={i} className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-5 space-y-3 animate-pulse">
+                  <div className="h-4 w-32 bg-[#D8D0BF]/60 rounded-md" />
                   <div className="flex gap-2">
-                    <div className="h-8 w-32 bg-stone-100 rounded-xl" />
-                    <div className="h-8 w-32 bg-stone-100 rounded-xl" />
+                    <div className="h-7 w-28 bg-[#D8D0BF]/40 rounded-lg" />
+                    <div className="h-7 w-28 bg-[#D8D0BF]/40 rounded-lg" />
                   </div>
                 </div>
               ))}
@@ -284,7 +292,7 @@ export const DoctorAvailabilitySection: React.FC = () => {
           {!isLoading && availabilities.length === 0 && (
             <EmptyState
               icon={Calendar}
-              color="amber"
+              color="stone"
               title="No Availability Slots Set"
               description="You haven't added any availability slots yet. Use the form on the left to publish your available hours for patients."
             />
@@ -292,26 +300,26 @@ export const DoctorAvailabilitySection: React.FC = () => {
 
           {/* Grouped Availability List */}
           {!isLoading && sortedDates.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {sortedDates.map((dateKey) => {
                 const slots = groupedAvailabilities[dateKey];
                 return (
                   <div
                     key={dateKey}
-                    className="bg-white/90 border border-stone-200/80 rounded-3xl p-5 sm:p-6 shadow-sm backdrop-blur-md hover:shadow-md transition-all space-y-3"
+                    className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl p-4 sm:p-5 shadow-xs space-y-2.5 text-[#141413]"
                   >
-                    <div className="flex items-center gap-2 text-stone-900 font-bold text-sm">
-                      <div className="w-2 h-2 rounded-full bg-amber-500" />
+                    <div className="flex items-center gap-2 text-[#141413] font-semibold text-xs sm:text-sm">
+                      <div className="w-2 h-2 rounded-full bg-[#141413]" />
                       <span>{formatDisplayDate(dateKey)}</span>
                     </div>
 
-                    <div className="flex flex-wrap gap-2.5 pt-1">
+                    <div className="flex flex-wrap gap-2 pt-0.5">
                       {slots.map((slot) => (
                         <div
                           key={slot.id}
-                          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-50/80 border border-amber-200/80 text-amber-950 text-xs font-semibold shadow-2xs hover:bg-amber-100/80 transition-all"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#141413] text-xs font-medium shadow-2xs"
                         >
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          <Clock className="w-3 h-3 text-[#141413]/60" />
                           <span>
                             {formatDisplayTime(slot.startTime)} – {formatDisplayTime(slot.endTime)}
                           </span>

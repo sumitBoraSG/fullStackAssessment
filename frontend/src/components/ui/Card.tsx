@@ -10,8 +10,8 @@ export interface CardProps {
 }
 
 const variantClasses: Record<CardVariant, string> = {
-  auth: "bg-white/90 border border-stone-200/80 rounded-3xl shadow-xl shadow-stone-200/60 backdrop-blur-2xl p-6 sm:p-8",
-  section: "bg-white/80 border border-stone-200/80 rounded-3xl shadow-sm backdrop-blur-md p-6 sm:p-8",
+  auth: "bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl shadow-xs p-6 sm:p-8 text-[#141413]",
+  section: "bg-[#E3DBCC] border border-[#D8D0BF] rounded-xl shadow-xs p-6 sm:p-8 text-[#141413]",
 };
 
 export const Card: React.FC<CardProps> = ({ variant = "section", className, children }) => {

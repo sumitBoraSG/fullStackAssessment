@@ -5,8 +5,9 @@ import { renderWithProviders } from "../test/render";
 import { USER_KEY } from "../api/apiClient";
 import { defaultAdminUser, defaultDoctorUser, defaultPatientUser } from "../test/msw/handlers";
 import { Navbar } from "./Navbar";
+import type { User } from "../types/auth";
 
-function renderNavbarAs(user?: typeof defaultPatientUser, route = "/dashboard") {
+function renderNavbarAs(user?: User, route = "/dashboard") {
   if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
   return renderWithProviders(<Navbar />, { route });
 }

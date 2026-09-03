@@ -76,24 +76,24 @@ export const PatientProfileForm: React.FC<PatientProfileFormProps> = ({ profile,
   return (
     <div className="space-y-6">
       {/* Read-only Card */}
-      <Card variant="section" className="bg-stone-50/60">
-        <div className="flex items-center gap-2 text-stone-500 mb-5 pb-4 border-b border-stone-200/70">
+      <Card variant="section" className="bg-[#E3DBCC] border-[#D8D0BF]">
+        <div className="flex items-center gap-2 text-[#141413]/60 mb-5 pb-3.5 border-b border-[#D8D0BF]">
           <Lock className="w-3.5 h-3.5" />
-          <span className="text-xs font-bold uppercase tracking-wider">Read-only</span>
+          <span className="text-xs font-semibold uppercase tracking-wider">Read-only Information</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
-            <span className="block text-xs font-semibold text-stone-500 mb-1">Date of Birth</span>
-            <p className="text-sm font-semibold text-stone-800 m-0">{formatDob(profile.dob)}</p>
+            <span className="block text-xs font-medium text-[#141413]/60 mb-1">Date of Birth</span>
+            <p className="text-sm font-semibold text-[#141413] m-0">{formatDob(profile.dob)}</p>
           </div>
 
           <div>
-            <span className="block text-xs font-semibold text-stone-500 mb-1.5">Blood Group</span>
+            <span className="block text-xs font-medium text-[#141413]/60 mb-1.5">Blood Group</span>
             {profile.bloodGroup ? (
               <Badge color="rose">{profile.bloodGroup}</Badge>
             ) : (
-              <p className="text-sm font-semibold text-stone-800 m-0">Not provided</p>
+              <p className="text-sm font-semibold text-[#141413] m-0">Not provided</p>
             )}
           </div>
         </div>
@@ -101,7 +101,7 @@ export const PatientProfileForm: React.FC<PatientProfileFormProps> = ({ profile,
 
       {/* Editable Card */}
       <Card variant="section">
-        <h3 className="text-sm font-bold text-stone-900 mb-5 pb-4 border-b border-stone-100">
+        <h3 className="text-sm font-semibold text-[#141413] mb-5 pb-3.5 border-b border-[#D8D0BF]">
           Vitals
         </h3>
 
