@@ -59,7 +59,7 @@ To setup the project, all you need to do is :
 
 This project uses typeorm for orm to connect and execute queries on DB. It is configured to use postgres as its database.
 
-This setup is using sync option of Typeorm. So DB is automatically updated with updates in our models
+`synchronize` is set to `false` (see `ormconfig.ts` / `src/database/db-connection.ts`) — the schema is **not** auto-updated from entity changes. Schema changes must go through a migration under `src/database/migration/` and `npm run migrate`. See `TECHNICAL_DOCUMENTATION.md` at the repo root for the full schema and an ER diagram.
 
 # Module Aliases
 

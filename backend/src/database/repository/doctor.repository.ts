@@ -151,6 +151,11 @@ export class DoctorRepository extends Repository<Doctor> {
         });
     }
 
+    public async updateExperienceYears(doctorId: number, experienceYears: number) {
+        await this.doctorRepo.update({ doctorId }, { experienceYears });
+        return this.findDoctorById(doctorId);
+    }
+
     public async getSpecializations() {
         // Only ever list specializations that are actually selectable —
         // must stay consistent with findSpecializationById's isActive

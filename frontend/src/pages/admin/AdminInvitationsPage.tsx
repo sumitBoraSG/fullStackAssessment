@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  AlertTriangle,
   XCircle,
   RefreshCw,
   Search,
@@ -34,6 +33,10 @@ import {
   revokeInvitationApi,
 } from "../../api/adminApi";
 import { BulkInviteModal } from "../../components/admin/BulkInviteModal";
+import { Button } from "../../components/ui/Button";
+import { Modal } from "../../components/ui/Modal";
+import { Alert } from "../../components/ui/Alert";
+import { EmptyState } from "../../components/ui/EmptyState";
 import type {
   UserRole,
   InvitationItem,
@@ -429,7 +432,8 @@ export const AdminInvitationsPage: React.FC = () => {
 
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
           {/* Refresh Action */}
-          <button
+          <Button
+            variant="secondary"
             onClick={() =>
               fetchInvitations(
                 pagination.page,
@@ -440,8 +444,8 @@ export const AdminInvitationsPage: React.FC = () => {
                 true
               )
             }
-            disabled={isLoading || isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-stone-50 active:bg-stone-100 border border-stone-200 text-stone-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+            disabled={isLoading}
+            isLoading={isRefreshing}
             title="Refresh table"
           >
             <RefreshCw
@@ -450,26 +454,23 @@ export const AdminInvitationsPage: React.FC = () => {
               }`}
             />
             <span className="hidden sm:inline">Refresh</span>
-          </button>
+          </Button>
 
           {/* Bulk Invite Action */}
-          <button
+          <Button
+            variant="secondary"
             onClick={() => setIsBulkModalOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100/80 active:bg-amber-200/80 border border-amber-200/90 text-amber-900 text-xs font-bold shadow-2xs transition-all cursor-pointer"
             title="Upload CSV for bulk invitations"
           >
-            <FileSpreadsheet className="w-4 h-4 text-amber-700" />
+            <FileSpreadsheet className="w-4 h-4" />
             <span>Bulk Invite</span>
-          </button>
+          </Button>
 
           {/* Single Invite Action */}
-          <button
-            onClick={() => setIsInviteModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 active:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/20 transition-all cursor-pointer"
-          >
+          <Button variant="primary" onClick={() => setIsInviteModalOpen(true)}>
             <Plus className="w-4 h-4" />
             <span>Invite User</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -565,15 +566,12 @@ export const AdminInvitationsPage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-stone-200/90 shadow-2xs overflow-hidden">
         {/* Error State Banner */}
         {fetchError && !isLoading && (
-          <div className="p-4 sm:p-5 m-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-              <div>
-                <h4 className="text-xs font-bold m-0 text-rose-900">Failed to load invitations</h4>
-                <p className="text-xs text-rose-700 mt-0.5 m-0">{fetchError}</p>
-              </div>
-            </div>
-            <button
+          <div className="m-4 space-y-3">
+            <Alert variant="error" title="Failed to load invitations">
+              {fetchError}
+            </Alert>
+            <Button
+              variant="danger"
               onClick={() =>
                 fetchInvitations(
                   pagination.page,
@@ -583,11 +581,9 @@ export const AdminInvitationsPage: React.FC = () => {
                   roleFilter
                 )
               }
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors shrink-0 cursor-pointer"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Retry</span>
-            </button>
+              Retry
+            </Button>
           </div>
         )}
 
@@ -720,38 +716,29 @@ export const AdminInvitationsPage: React.FC = () => {
 
         {/* Empty State */}
         {!isLoading && !fetchError && invitations.length === 0 && (
-          <div className="p-14 text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-stone-100 text-stone-400">
-              <Inbox className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-stone-800 m-0">No invitations found</p>
-              <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
-                {hasActiveFilters
-                  ? "No invitations match your search and filter criteria. Try resetting filters."
-                  : "No invitations have been issued yet. Send your first invitation to get started."}
-              </p>
-            </div>
-            <div className="pt-2 flex items-center justify-center gap-2">
-              {hasActiveFilters ? (
-                <button
-                  onClick={handleResetFilters}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition-colors cursor-pointer"
-                >
+          <EmptyState
+            icon={Inbox}
+            color="stone"
+            title="No invitations found"
+            description={
+              hasActiveFilters
+                ? "No invitations match your search and filter criteria. Try resetting filters."
+                : "No invitations have been issued yet. Send your first invitation to get started."
+            }
+            action={
+              hasActiveFilters ? (
+                <Button variant="secondary" onClick={handleResetFilters}>
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Reset Filters</span>
-                </button>
+                </Button>
               ) : (
-                <button
-                  onClick={() => setIsInviteModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
-                >
+                <Button variant="primary" onClick={() => setIsInviteModalOpen(true)}>
                   <Plus className="w-4 h-4" />
                   <span>Invite New User</span>
-                </button>
-              )}
-            </div>
-          </div>
+                </Button>
+              )
+            }
+          />
         )}
 
         {/* Pagination Footer */}
@@ -831,216 +818,153 @@ export const AdminInvitationsPage: React.FC = () => {
       </div>
 
       {/* Single Invite Modal */}
-      {isInviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/30 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl border border-stone-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-stone-900 m-0">
-                    Invite New User
-                  </h3>
-                  <p className="text-xs text-stone-500 m-0">
-                    Send single onboarding registration link
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsInviteModalOpen(false)}
-                disabled={isSubmitting}
-                className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Form */}
-            <form onSubmit={handleSendInvite} className="p-5 sm:p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
-                  Email Address <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="e.g. practitioner@docpulse.com"
-                  disabled={isSubmitting}
-                  className={`w-full px-3.5 py-2.5 text-xs rounded-xl bg-white border text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 transition-all ${
-                    inviteErrors.email
-                      ? "border-rose-400 ring-rose-500/20"
-                      : "border-stone-200 focus:border-amber-500 focus:ring-amber-500/20"
-                  }`}
-                />
-                {inviteErrors.email && (
-                  <p className="text-xs text-rose-600 mt-1 font-medium m-0">
-                    {inviteErrors.email}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-2">
-                  Assign Role <span className="text-rose-500">*</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {[
-                    { id: "DOCTOR" as UserRole, label: "Doctor", icon: Stethoscope },
-                    { id: "PATIENT" as UserRole, label: "Patient", icon: User },
-                    { id: "ADMIN" as UserRole, label: "Admin", icon: ShieldCheck },
-                  ].map((item) => {
-                    const Icon = item.icon;
-                    const isSelected = inviteRole === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setInviteRole(item.id)}
-                        disabled={isSubmitting}
-                        className={`p-3 rounded-2xl border text-left flex flex-col gap-2 transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-amber-50/80 border-amber-500 ring-2 ring-amber-500/20 text-amber-950 shadow-2xs"
-                            : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50 shadow-2xs"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <Icon className={`w-4 h-4 ${isSelected ? "text-amber-600" : "text-stone-400"}`} />
-                          {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />}
-                        </div>
-                        <span className="text-xs font-bold">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/80 text-[11px] text-stone-500 flex items-start gap-2">
-                <Clock className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
-                <span>
-                  The invitation link will automatically expire in 24 hours. The recipient will be invited to set their password.
-                </span>
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={() => setIsInviteModalOpen(false)}
-                  disabled={isSubmitting}
-                  className="px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-bold text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold shadow-md shadow-amber-600/20 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Sending Invitation...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Send Invitation</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        icon={Mail}
+        iconColor="amber"
+        title="Invite New User"
+        description="Send single onboarding registration link"
+        disableClose={isSubmitting}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsInviteModalOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="single-invite-form"
+              variant="primary"
+              isLoading={isSubmitting}
+              loadingText="Sending Invitation..."
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Send Invitation</span>
+            </Button>
+          </>
+        }
+      >
+        {/* Modal Form */}
+        <form id="single-invite-form" onSubmit={handleSendInvite} className="space-y-4" noValidate>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
+              Email Address <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="e.g. practitioner@docpulse.com"
+              disabled={isSubmitting}
+              className={`w-full px-3.5 py-2.5 text-xs rounded-xl bg-white border text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 transition-all ${
+                inviteErrors.email
+                  ? "border-rose-400 ring-rose-500/20"
+                  : "border-stone-200 focus:border-amber-500 focus:ring-amber-500/20"
+              }`}
+            />
+            {inviteErrors.email && (
+              <p className="text-xs text-rose-600 mt-1 font-medium m-0">
+                {inviteErrors.email}
+              </p>
+            )}
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-2">
+              Assign Role <span className="text-rose-500">*</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2.5">
+              {[
+                { id: "DOCTOR" as UserRole, label: "Doctor", icon: Stethoscope },
+                { id: "PATIENT" as UserRole, label: "Patient", icon: User },
+                { id: "ADMIN" as UserRole, label: "Admin", icon: ShieldCheck },
+              ].map((item) => {
+                const Icon = item.icon;
+                const isSelected = inviteRole === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setInviteRole(item.id)}
+                    disabled={isSubmitting}
+                    className={`p-3 rounded-2xl border text-left flex flex-col gap-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-amber-50/80 border-amber-500 ring-2 ring-amber-500/20 text-amber-950 shadow-2xs"
+                        : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50 shadow-2xs"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <Icon className={`w-4 h-4 ${isSelected ? "text-amber-600" : "text-stone-400"}`} />
+                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />}
+                    </div>
+                    <span className="text-xs font-bold">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200/80 text-[11px] text-stone-500 flex items-start gap-2">
+            <Clock className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
+            <span>
+              The invitation link will automatically expire in 24 hours. The recipient will be invited to set their password.
+            </span>
+          </div>
+        </form>
+      </Modal>
 
       {/* Revoke Confirmation Modal */}
       {revokeTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/30 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl border border-stone-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-stone-100 flex items-center justify-between bg-rose-50/40">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-rose-100/80 text-rose-700 border border-rose-200 flex items-center justify-center">
-                  <Ban className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-stone-900 m-0">
-                    Revoke Invitation
-                  </h3>
-                  <p className="text-xs text-stone-500 m-0">
-                    Immediately invalidate registration access
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleCloseRevokeModal}
-                disabled={isRevoking}
-                className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 sm:p-6 space-y-4">
-              {revokeError && (
-                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  <p className="m-0 font-medium">{revokeError}</p>
-                </div>
-              )}
-
-              <p className="text-xs text-stone-600 leading-relaxed m-0">
-                Are you sure you want to revoke the registration invitation for{" "}
-                <span className="font-bold text-stone-900">{revokeTarget.email}</span> (
-                <span className="font-semibold text-stone-700">{revokeTarget.role}</span>)?
-              </p>
-
-              <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-[11px] text-amber-900 flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <span className="font-bold block text-amber-950 mb-0.5">Warning: Immediate Invalidation</span>
-                  This action cannot be undone. The unique invitation link will become unusable immediately, preventing the recipient from registering.
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 sm:px-6 bg-stone-50/50 border-t border-stone-100 flex items-center justify-end gap-2.5">
-              <button
+        <Modal
+          isOpen={true}
+          onClose={handleCloseRevokeModal}
+          icon={Ban}
+          iconColor="rose"
+          title="Revoke Invitation"
+          description="Immediately invalidate registration access"
+          disableClose={isRevoking}
+          footer={
+            <>
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={handleCloseRevokeModal}
                 disabled={isRevoking}
-                className="px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-bold text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer disabled:opacity-50"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="danger"
                 onClick={handleConfirmRevoke}
-                disabled={isRevoking}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 active:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 transition-all cursor-pointer disabled:opacity-50"
+                isLoading={isRevoking}
+                loadingText="Revoking..."
               >
-                {isRevoking ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Revoking...</span>
-                  </>
-                ) : (
-                  <>
-                    <Ban className="w-3.5 h-3.5" />
-                    <span>Confirm Revoke</span>
-                  </>
-                )}
-              </button>
-            </div>
+                <Ban className="w-3.5 h-3.5" />
+                <span>Confirm Revoke</span>
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            {revokeError && <Alert variant="error">{revokeError}</Alert>}
+
+            <p className="text-xs text-stone-600 leading-relaxed m-0">
+              Are you sure you want to revoke the registration invitation for{" "}
+              <span className="font-bold text-stone-900">{revokeTarget.email}</span> (
+              <span className="font-semibold text-stone-700">{revokeTarget.role}</span>)?
+            </p>
+
+            <Alert variant="warning" title="Warning: Immediate Invalidation">
+              This action cannot be undone. The unique invitation link will become unusable immediately, preventing the recipient from registering.
+            </Alert>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Bulk Invitations Modal */}

@@ -5,6 +5,7 @@ import {
   createPatientUser,
   createAppointmentRow,
   loginAgent,
+  signExpiredRefreshToken,
 } from "../util/factories";
 
 setupIntegrationTest();
@@ -38,6 +39,67 @@ describe("Auth: login/refresh flow", () => {
       .post("/auth/refresh")
       .set("Cookie", "refreshToken=not-a-real-token");
     expect(res.status).toBe(401);
+  });
+
+  it("distinguishes an expired refresh token from a malformed/invalid one", async () => {
+    const patient = await createPatientUser("refresh-expired@test.com", "Pass123456");
+
+    const expiredRes = await request(app)
+      .post("/auth/refresh")
+      .set("Cookie", `refreshToken=${signExpiredRefreshToken(patient.id)}`);
+    expect(expiredRes.status).toBe(401);
+    expect(expiredRes.body.message).toBe("Refresh token has expired");
+
+    const invalidRes = await request(app)
+      .post("/auth/refresh")
+      .set("Cookie", "refreshToken=garbage.not-a.jwt");
+    expect(invalidRes.status).toBe(401);
+    expect(invalidRes.body.message).toBe("Invalid refresh token");
+  });
+
+  it("sets HttpOnly/SameSite cookies without Secure under NODE_ENV=test", async () => {
+    const patient = await createPatientUser("cookie-flags@test.com", "Pass123456");
+
+    const res = await request(app)
+      .post("/auth/login")
+      .send({ email: patient.email, password: patient.password });
+
+    expect(res.status).toBe(200);
+    const setCookie = res.headers["set-cookie"] as unknown as string[];
+    expect(setCookie).toBeDefined();
+
+    const accessCookie = setCookie.find((c) => c.startsWith("accessToken="));
+    const refreshCookie = setCookie.find((c) => c.startsWith("refreshToken="));
+    expect(accessCookie).toBeDefined();
+    expect(refreshCookie).toBeDefined();
+
+    for (const cookie of [accessCookie, refreshCookie]) {
+      expect(cookie).toMatch(/HttpOnly/i);
+      expect(cookie).toMatch(/SameSite=Lax/i);
+      expect(cookie).not.toMatch(/Secure/i);
+    }
+  });
+});
+
+describe("Auth: login failure modes", () => {
+  it("rejects a wrong password with a generic 401 (no enumeration leak)", async () => {
+    const patient = await createPatientUser("wrongpass@test.com", "Pass123456");
+
+    const res = await request(app)
+      .post("/auth/login")
+      .send({ email: patient.email, password: "TotallyWrongPass1" });
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Invalid email or password");
+  });
+
+  it("rejects a non-existent email with the same generic 401 message", async () => {
+    const res = await request(app)
+      .post("/auth/login")
+      .send({ email: "does-not-exist@test.com", password: "AnyPassword1" });
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Invalid email or password");
   });
 });
 

@@ -1,9 +1,11 @@
 import bcrypt from "bcrypt";
+import * as jwt from "jsonwebtoken";
 import { getConnection } from "typeorm";
 import request from "supertest";
 import { Application } from "express";
-import { EmailService } from "@service/email.service";
+import { EmailService } from "@service/email/email.service";
 import { UserRole } from "@database/enum/userRole";
+import { REFRESH_TOKEN_SECRET } from "@config/secret";
 
 export const SPECIALIZATION_IDS = {
   GENERAL_PRACTITIONER: 1,
@@ -99,6 +101,47 @@ export async function createAppointmentRow(
 }
 
 /**
+ * Seeds an invitation row directly (bypassing the HTTP invite flow) so a
+ * test can put it straight into EXPIRED/USED/REVOKED state — states that
+ * are otherwise only reachable via a real 24h wait, a full accept flow, or
+ * an admin revoke call. `createdBy`/`updatedBy` are NOT NULL FK columns to
+ * `users`, so a real user id (e.g. an admin created via createAdminUser)
+ * must be supplied. Defaults to a pending invitation expiring in 24h.
+ */
+export async function createInvitationRow(
+  email: string,
+  role: UserRole,
+  hashedToken: string,
+  createdBy: number,
+  options: { expiresAt?: Date; usedAt?: Date | null; revokedAt?: Date | null } = {},
+): Promise<number> {
+  const expiresAt = options.expiresAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const usedAt = options.usedAt ?? null;
+  const revokedAt = options.revokedAt ?? null;
+
+  const [{ id }] = await getConnection().query(
+    `INSERT INTO user_invitations
+       (email, role, hashed_token, expires_at, used_at, revoked_at, created_by, updated_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING id`,
+    [email.toLowerCase(), role, hashedToken, expiresAt, usedAt, revokedAt, createdBy],
+  );
+  return id;
+}
+
+/**
+ * Signs a refresh token that's already expired (expiresIn: "-1s"), so a
+ * test can deterministically hit AuthService.refresh's TokenExpiredError
+ * branch without waiting out the real refresh-token lifetime.
+ */
+export function signExpiredRefreshToken(userId: number): string {
+  return jwt.sign(
+    { id: userId, type: "refresh" },
+    REFRESH_TOKEN_SECRET as string,
+    { expiresIn: "-1s" },
+  );
+}
+
+/**
  * Intercepts EmailService.sendInvitationEmail (mocked, so no real email is
  * ever sent) and captures the raw invitation token passed to it — the only
  * place the raw token is ever available, since only its hash is persisted.
@@ -113,4 +156,51 @@ export function mockInvitationEmails(): { getLastToken: () => string } {
     });
 
   return { getLastToken: () => lastToken };
+}
+
+const APPOINTMENT_EMAIL_METHODS = [
+  "sendAppointmentRequestedPatientEmail",
+  "sendAppointmentRequestedDoctorEmail",
+  "sendAppointmentConfirmedEmail",
+  "sendAppointmentDeclinedEmail",
+  "sendAppointmentCancelledEmail",
+  "sendAppointmentCompletedEmail",
+] as const;
+
+/**
+ * Mocks every EmailService method (invitation + appointment lifecycle) so no
+ * integration test can ever attempt a real SMTP send, regardless of whether
+ * it exercises a code path that now triggers email notifications. Wired into
+ * setupIntegrationTest()'s beforeEach. Individual tests that want to assert
+ * on a specific call can re-spy afterwards — jest.spyOn is idempotent, so
+ * re-spying just lets the test reconfigure/inspect the existing mock.
+ */
+export function mockAllEmailDelivery(): void {
+  jest.spyOn(EmailService.prototype, "sendInvitationEmail").mockResolvedValue(undefined);
+
+  for (const method of APPOINTMENT_EMAIL_METHODS) {
+    jest.spyOn(EmailService.prototype, method).mockResolvedValue(undefined);
+  }
+}
+
+/**
+ * Spies on every appointment lifecycle email method and returns each spy so
+ * a test can assert recipient/details without having to re-derive the method
+ * name list itself.
+ */
+export function spyOnAppointmentEmails() {
+  return {
+    requestedPatient: jest.spyOn(
+      EmailService.prototype,
+      "sendAppointmentRequestedPatientEmail",
+    ),
+    requestedDoctor: jest.spyOn(
+      EmailService.prototype,
+      "sendAppointmentRequestedDoctorEmail",
+    ),
+    confirmed: jest.spyOn(EmailService.prototype, "sendAppointmentConfirmedEmail"),
+    declined: jest.spyOn(EmailService.prototype, "sendAppointmentDeclinedEmail"),
+    cancelled: jest.spyOn(EmailService.prototype, "sendAppointmentCancelledEmail"),
+    completed: jest.spyOn(EmailService.prototype, "sendAppointmentCompletedEmail"),
+  };
 }

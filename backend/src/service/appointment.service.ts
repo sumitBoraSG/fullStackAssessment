@@ -8,8 +8,12 @@ import {
 } from "@database/repository/appointment.repository";
 import { DoctorRepository } from "@database/repository/doctor.repository";
 import { Appointment } from "@database/model/Appointment";
+import { Doctor } from "@database/model/Doctor";
+import { User } from "@database/model/User";
 import constant from "@config/constant";
 import logger from "@core/logger";
+import { EmailService } from "@service/email/email.service";
+import { AppointmentEmailDetails } from "@service/email/types";
 import {
     buildISTRangeLiteral,
     getISTCurrentTimeString,
@@ -66,6 +70,8 @@ export class AppointmentService {
     private static readonly DEFAULT_PAGE = 1;
     private static readonly DEFAULT_LIMIT = 10;
     private static readonly MAX_LIMIT = 100;
+
+    private emailService = new EmailService();
 
     private get appointmentRepository() {
         return getManager().getCustomRepository(
@@ -306,6 +312,13 @@ export class AppointmentService {
                 },
             });
 
+            await this.notifyAppointmentRequested(
+                appointment.id,
+                patient.user,
+                doctor,
+                { date, startTime, endTime },
+            );
+
             return {
                 id: appointment.id,
                 status: appointment.status,
@@ -462,6 +475,13 @@ export class AppointmentService {
             },
         });
 
+        await this.notifyAppointmentStatusTransition(
+            appointment.status,
+            status,
+            updatedAppointment,
+            doctorId,
+        );
+
         return this.formatDoctorAppointment(updatedAppointment);
     }
 
@@ -590,6 +610,11 @@ export class AppointmentService {
                 newStatus: status,
             },
         });
+
+        await this.notifyAppointmentCancelledByPatient(
+            patientId,
+            updatedAppointment,
+        );
 
         return this.formatPatientAppointment(updatedAppointment);
     }
@@ -726,6 +751,209 @@ export class AppointmentService {
                 email: appointment.patient?.user?.email || "",
             },
         };
+    }
+
+    // ---------------------------------------------------------------------
+    // Email notifications
+    //
+    // Every call site below only fires after the corresponding database
+    // transition has already succeeded, so a failed/invalid transition never
+    // reaches this code, and a successful one only ever reaches it once (the
+    // repository's compare-and-swap update guarantees a given transition is
+    // observed exactly once). Email delivery failures are caught and logged
+    // here so they never turn an already-successful appointment operation
+    // into an error response.
+    // ---------------------------------------------------------------------
+
+    private formatUserDisplayName(user?: Pick<User, "firstName" | "lastName">): string {
+        return `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
+    }
+
+    private formatDoctorDisplayName(doctor?: Pick<Doctor, "user">): string {
+        const name = this.formatUserDisplayName(doctor?.user);
+        return name ? `Dr. ${name}` : "your doctor";
+    }
+
+    private async notifyAppointmentRequested(
+        appointmentId: number,
+        patientUser: Pick<User, "firstName" | "lastName" | "email">,
+        doctor: Doctor,
+        time: { date: string; startTime: string; endTime: string },
+    ): Promise<void> {
+        const details: AppointmentEmailDetails = {
+            patientName: this.formatUserDisplayName(patientUser),
+            doctorName: this.formatDoctorDisplayName(doctor),
+            ...time,
+        };
+
+        await Promise.all([
+            this.emailService
+                .sendAppointmentRequestedPatientEmail(
+                    patientUser.email,
+                    appointmentId,
+                    details,
+                )
+                .catch((error) =>
+                    this.logEmailFailure(
+                        appointmentId,
+                        "APPOINTMENT_REQUESTED_PATIENT",
+                        patientUser.email,
+                        error,
+                    ),
+                ),
+            doctor.user?.email
+                ? this.emailService
+                    .sendAppointmentRequestedDoctorEmail(
+                        doctor.user.email,
+                        appointmentId,
+                        details,
+                    )
+                    .catch((error) =>
+                        this.logEmailFailure(
+                            appointmentId,
+                            "APPOINTMENT_REQUESTED_DOCTOR",
+                            doctor.user.email,
+                            error,
+                        ),
+                    )
+                : Promise.resolve(),
+        ]);
+    }
+
+    // Maps a status transition to the email it should trigger. Returns
+    // undefined for any transition that has no associated email (e.g. no
+    // recognized transition occurred, or the doctor's own status-update
+    // vocabulary doesn't map to a patient-facing notification).
+    private getStatusTransitionEmailType(
+        previousStatus: AppointmentStatus,
+        newStatus: AppointmentStatus,
+    ): "APPOINTMENT_CONFIRMED" | "APPOINTMENT_DECLINED" | "APPOINTMENT_COMPLETED" | undefined {
+        if (previousStatus === AppointmentStatus.PENDING && newStatus === AppointmentStatus.CONFIRMED) {
+            return "APPOINTMENT_CONFIRMED";
+        }
+        if (previousStatus === AppointmentStatus.PENDING && newStatus === AppointmentStatus.REJECTED) {
+            return "APPOINTMENT_DECLINED";
+        }
+        if (previousStatus === AppointmentStatus.CONFIRMED && newStatus === AppointmentStatus.COMPLETED) {
+            return "APPOINTMENT_COMPLETED";
+        }
+        return undefined;
+    }
+
+    private buildStatusTransitionEmailDetails(
+        appointment: Appointment,
+        doctor?: Doctor,
+    ): AppointmentEmailDetails {
+        const { date, startTime, endTime } = parseRangeToIST(
+            appointment.appointmentTime,
+        );
+
+        return {
+            patientName: this.formatUserDisplayName(appointment.patient?.user),
+            doctorName: this.formatDoctorDisplayName(doctor),
+            date,
+            startTime,
+            endTime,
+        };
+    }
+
+    private async deliverStatusTransitionEmail(
+        emailType: "APPOINTMENT_CONFIRMED" | "APPOINTMENT_DECLINED" | "APPOINTMENT_COMPLETED",
+        patientEmail: string,
+        appointmentId: number,
+        details: AppointmentEmailDetails,
+    ): Promise<void> {
+        if (emailType === "APPOINTMENT_CONFIRMED") {
+            await this.emailService.sendAppointmentConfirmedEmail(patientEmail, appointmentId, details);
+        } else if (emailType === "APPOINTMENT_DECLINED") {
+            await this.emailService.sendAppointmentDeclinedEmail(patientEmail, appointmentId, details);
+        } else {
+            await this.emailService.sendAppointmentCompletedEmail(patientEmail, appointmentId, details);
+        }
+    }
+
+    private async notifyAppointmentStatusTransition(
+        previousStatus: AppointmentStatus,
+        newStatus: AppointmentStatus,
+        appointment: Appointment,
+        doctorId: number,
+    ): Promise<void> {
+        const patientEmail = appointment.patient?.user?.email;
+        const emailType = this.getStatusTransitionEmailType(previousStatus, newStatus);
+
+        if (!patientEmail || !emailType) {
+            return;
+        }
+
+        try {
+            const doctor = await this.doctorRepository.findDoctorById(doctorId);
+            const details = this.buildStatusTransitionEmailDetails(appointment, doctor);
+            await this.deliverStatusTransitionEmail(
+                emailType,
+                patientEmail,
+                appointment.id,
+                details,
+            );
+        } catch (error) {
+            this.logEmailFailure(appointment.id, emailType, patientEmail, error);
+        }
+    }
+
+    private async notifyAppointmentCancelledByPatient(
+        patientId: number,
+        appointment: Appointment,
+    ): Promise<void> {
+        const doctorEmail = appointment.doctor?.user?.email;
+        if (!doctorEmail) {
+            return;
+        }
+
+        try {
+            const patient = await this.appointmentRepository.findPatientById(
+                patientId,
+            );
+            const { date, startTime, endTime } = parseRangeToIST(
+                appointment.appointmentTime,
+            );
+            const details: AppointmentEmailDetails = {
+                patientName: patient
+                    ? this.formatUserDisplayName(patient.user)
+                    : "The patient",
+                doctorName: this.formatDoctorDisplayName(appointment.doctor),
+                date,
+                startTime,
+                endTime,
+            };
+
+            await this.emailService.sendAppointmentCancelledEmail(
+                doctorEmail,
+                appointment.id,
+                details,
+            );
+        } catch (error) {
+            this.logEmailFailure(
+                appointment.id,
+                "APPOINTMENT_CANCELLED",
+                doctorEmail,
+                error,
+            );
+        }
+    }
+
+    private logEmailFailure(
+        appointmentId: number,
+        emailType: string,
+        recipient: string,
+        error: unknown,
+    ): void {
+        logger.error("Failed to send appointment email", {
+            data: {
+                appointmentId,
+                recipient,
+                emailType,
+                error: error instanceof Error ? error.message : String(error),
+            },
+        });
     }
 
 }

@@ -133,4 +133,45 @@ export class DoctorController {
             next(error);
         }
     };
+
+    public getProfile = async (
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ): Promise<void> => {
+        try {
+            const doctorId = req.user.id;
+            const profile = await this.doctorService.getOwnProfile(doctorId);
+
+            res.status(constant.HTTP_STATUS_OK).json({
+                success: true,
+                data: profile,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    public updateProfile = async (
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ): Promise<void> => {
+        try {
+            const doctorId = req.user.id;
+            const { experienceYears } = req.body;
+
+            const profile = await this.doctorService.updateOwnProfile(
+                doctorId,
+                experienceYears,
+            );
+
+            res.status(constant.HTTP_STATUS_OK).json({
+                success: true,
+                data: profile,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

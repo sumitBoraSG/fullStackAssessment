@@ -1,0 +1,21 @@
+{
+  "name": "fullstack-project-root",
+  "private": true,
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^16.4.5",
+    "pg": "^8.10.0"
+  },
+  "scripts": {
+    "test:backend": "npm --prefix backend test",
+    "test:frontend": "npm --prefix frontend run test",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
+    "test:e2e:report": "playwright show-report",
+    "test:all": "npm run test:backend && npm run test:frontend && npm run test:e2e"
+  },
+  "allowScripts": {
+    "bcrypt@5.1.1": true
+  }
+}

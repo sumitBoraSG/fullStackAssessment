@@ -6,7 +6,6 @@ import {
   Download,
   AlertCircle,
   CheckCircle2,
-  Loader2,
   Check,
   RotateCcw,
   Search,
@@ -20,6 +19,8 @@ import type {
   BulkInviteResultItem,
   UserRole,
 } from "../../types/auth";
+import { Button } from "../ui/Button";
+import { Alert } from "../ui/Alert";
 
 interface BulkInviteModalProps {
   isOpen: boolean;
@@ -360,43 +361,32 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
 
               {/* Error state message */}
               {uploadError && (
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-2.5 shadow-2xs animate-in fade-in">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-xs font-bold text-rose-900 m-0">Upload Failed</h4>
-                    <p className="text-xs text-rose-700 mt-0.5 m-0">{uploadError}</p>
-                  </div>
-                </div>
+                <Alert variant="error" title="Upload Failed">
+                  {uploadError}
+                </Alert>
               )}
 
               {/* Footer Actions */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-stone-100">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={handleClose}
                   disabled={isUploading}
-                  className="px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-bold text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
                 >
                   Cancel
-                </button>
+                </Button>
 
-                <button
+                <Button
                   type="submit"
+                  variant="primary"
+                  isLoading={isUploading}
+                  loadingText="Sending Bulk Invitations..."
                   disabled={!file || isUploading}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold shadow-md shadow-amber-600/20 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Sending Bulk Invitations...</span>
-                    </>
-                  ) : (
-                    <>
-                      <UploadCloud className="w-4 h-4" />
-                      <span>Upload & Invite</span>
-                    </>
-                  )}
-                </button>
+                  <UploadCloud className="w-4 h-4" />
+                  <span>Upload & Invite</span>
+                </Button>
               </div>
             </form>
           )}
@@ -596,22 +586,14 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
 
               {/* Modal Actions */}
               <div className="flex items-center justify-between pt-3 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
-                >
+                <Button type="button" variant="secondary" onClick={handleReset}>
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Upload Another CSV</span>
-                </button>
+                </Button>
 
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                >
+                <Button type="button" variant="primary" onClick={handleClose}>
                   <span>Done</span>
-                </button>
+                </Button>
               </div>
             </div>
           )}

@@ -6,9 +6,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   X,
-  Sparkles,
   Award,
   CalendarDays,
   UserCheck,
@@ -26,6 +24,10 @@ import type {
 import type { PaginationMeta } from "../../types/auth";
 import type { PatientAppointment } from "../../types/appointment";
 import { AppointmentBookingModal } from "./AppointmentBookingModal";
+import { Button } from "../ui/Button";
+import { Alert } from "../ui/Alert";
+import { EmptyState } from "../ui/EmptyState";
+import { Badge } from "../ui/Badge";
 
 interface PatientDoctorDiscoveryProps {
   onAppointmentBooked?: (appointment: PatientAppointment) => void;
@@ -131,21 +133,10 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Top Banner Header */}
-      <div className="bg-white/80 border border-stone-200/80 rounded-3xl p-6 sm:p-8 shadow-sm backdrop-blur-md relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-teal-100/40 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200/80 text-[11px] font-bold text-teal-900 mb-2 shadow-2xs">
-            <Sparkles className="w-3 h-3 text-teal-600" />
-            <span>Healthcare Directory</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">
-            Find & Book a Doctor
-          </h1>
-          <p className="text-sm text-stone-500 mt-1">
-            Browse verified medical specialists, filter by department or availability, and book your consultation in seconds.
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <p className="text-sm text-stone-500 max-w-xl m-0">
+          Browse verified specialists and book your consultation in a few clicks.
+        </p>
       </div>
 
       {/* Filter Bar */}
@@ -239,12 +230,7 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
       </div>
 
       {/* Error Alert */}
-      {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-3">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+      {errorMsg && <Alert variant="error">{errorMsg}</Alert>}
 
       {/* Doctors Grid */}
       {isLoading ? (
@@ -261,25 +247,19 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
           ))}
         </div>
       ) : doctors.length === 0 ? (
-        <div className="bg-white/80 border border-stone-200/80 rounded-3xl p-12 text-center space-y-4 shadow-2xs">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center mx-auto">
-            <Stethoscope className="w-7 h-7" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-bold text-stone-900">No Doctors Found</h3>
-            <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
-              No medical specialists matched your selected filters or search query. Try clearing filters to view all doctors.
-            </p>
-          </div>
-          {(searchQuery || selectedSpecialization || selectedDate) && (
-            <button
-              onClick={handleClearFilters}
-              className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-semibold border border-amber-200 transition-all cursor-pointer"
-            >
-              Clear Search Filters
-            </button>
-          )}
-        </div>
+        <EmptyState
+          icon={Stethoscope}
+          color="amber"
+          title="No Doctors Found"
+          description="No medical specialists matched your selected filters or search query. Try clearing filters to view all doctors."
+          action={
+            (searchQuery || selectedSpecialization || selectedDate) ? (
+              <Button variant="secondary" onClick={handleClearFilters}>
+                Clear Search Filters
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {doctors.map((doc) => (
@@ -293,10 +273,9 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-50 to-amber-100 border border-amber-200/80 text-amber-700 flex items-center justify-center font-bold text-base shadow-2xs group-hover:scale-105 transition-all">
                     <Stethoscope className="w-6 h-6" />
                   </div>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-bold">
-                    <UserCheck className="w-3 h-3 text-emerald-600" />
-                    <span>Verified</span>
-                  </span>
+                  <Badge color="emerald" icon={UserCheck} size="xs">
+                    Verified
+                  </Badge>
                 </div>
 
                 {/* Info */}
@@ -315,16 +294,16 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
               </div>
 
               {/* Book Appointment Action */}
-              <button
+              <Button
+                variant="primary"
+                fullWidth
                 onClick={() => handleOpenBooking(doc.id)}
-                disabled={isLoadingDoctorDetails === doc.id}
-                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                isLoading={isLoadingDoctorDetails === doc.id}
+                loadingText="Loading..."
               >
                 <CalendarDays className="w-3.5 h-3.5" />
-                <span>
-                  {isLoadingDoctorDetails === doc.id ? "Loading..." : "Book Appointment"}
-                </span>
-              </button>
+                <span>Book Appointment</span>
+              </Button>
             </div>
           ))}
         </div>

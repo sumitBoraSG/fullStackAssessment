@@ -3,7 +3,7 @@ import createError from "http-errors";
 import constant from "@config/constant";
 import logger from "@core/logger";
 import { UserRole } from "@database/enum/userRole";
-import { EmailService } from "@service/email.service";
+import { EmailService } from "@service/email/email.service";
 import { bulkInviteRowSchema } from "@api/validator/bulkInvite.validation";
 import { InvitationStatus } from "../types/invitationStatus";
 import { AuthRepository } from "@database/repository/auth.repository";

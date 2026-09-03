@@ -20,6 +20,24 @@ export async function loginApi(email: string, password: string): Promise<LoginRe
     });
 
     const data = await response.json();
+
+    // Success responses from this endpoint use {success, data}, but failures
+    // go through the shared error middleware, which uses {status, message,
+    // code} instead - without this normalization, every login failure fell
+    // through to AuthContext's generic fallback message regardless of the
+    // real reason (e.g. rate-limited vs wrong password).
+    if (!response.ok || data.success === false || data.status === false) {
+      const errorMessage =
+        data.message || data.error?.message || "Invalid credentials. Please try again.";
+      return {
+        success: false,
+        error: {
+          code: data.code || data.error?.code || "LOGIN_ERROR",
+          message: errorMessage,
+        },
+      };
+    }
+
     return data;
   } catch (err: any) {
     return {

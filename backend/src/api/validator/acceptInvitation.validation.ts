@@ -1,6 +1,8 @@
 import Joi from "@hapi/joi";
 import { BloodGroup } from "@database/enum/BloodGroup";
 
+const PASSWORD_MIN_LENGTH = 12;
+
 // Role-specific fields are optional at this pure shape/range-validation
 // layer since the role itself is only known once the invitation is looked
 // up server-side (never from the client). AuthService enforces which of
@@ -21,9 +23,19 @@ export const acceptInvitationSchema = Joi.object({
     .required(),
 
   password: Joi.string()
-    .min(8)
+    .min(PASSWORD_MIN_LENGTH)
     .max(128)
-    .required(),
+    .pattern(/[a-z]/, { name: "lowercase letter" })
+    .pattern(/[A-Z]/, { name: "uppercase letter" })
+    .pattern(/[0-9]/, { name: "number" })
+    .pattern(/[^A-Za-z0-9]/, { name: "special character" })
+    .required()
+    .messages({
+      "string.min": `Password must be at least ${PASSWORD_MIN_LENGTH} characters long`,
+      "string.max": "Password must be at most 128 characters long",
+      "string.pattern.name": "Password must contain at least one {#name}",
+      "any.required": "Password is required",
+    }),
 
   // Doctor-specific — max bound matches the smallint specialization_id column
   specializationId: Joi.number().integer().positive().max(32767).optional(),

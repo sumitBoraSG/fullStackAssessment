@@ -12,6 +12,7 @@ import {
     doctorAppointmentStatusBodySchema,
     getDoctorAppointmentsQuerySchema,
 } from "@api/validator/appointment.validation";
+import { updateDoctorProfileSchema } from "@api/validator/profile.validation";
 
 import { HttpRequestValidator } from "@middleware/http-request-validator";
 import { AuthMiddleware } from "@middleware/auth.middleware";
@@ -75,6 +76,23 @@ class DoctorRoute {
                 doctorAppointmentStatusBodySchema,
             ),
             this.appointmentController.updateAppointmentStatus,
+        );
+
+        this.router.get(
+            "/profile",
+            this.rateLimitMiddleware.general,
+            this.authMiddleware.authenticate,
+            this.authorizationMiddleware.authorize(UserRole.DOCTOR),
+            this.doctorController.getProfile,
+        );
+
+        this.router.patch(
+            "/profile",
+            this.rateLimitMiddleware.general,
+            this.authMiddleware.authenticate,
+            this.authorizationMiddleware.authorize(UserRole.DOCTOR),
+            this.requestValidator.validate("body", updateDoctorProfileSchema),
+            this.doctorController.updateProfile,
         );
     }
 }

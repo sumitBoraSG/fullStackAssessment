@@ -6,12 +6,29 @@ import { Toast } from "./components/Toast";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { AcceptInvitationPage } from "./pages/AcceptInvitationPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { AdminLayout } from "./components/admin/AdminLayout";
 import { AdminInvitationsPage } from "./pages/admin/AdminInvitationsPage";
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, user, setNotification } = useAuth();
   const { path, navigate } = useRouter();
+
+  // Non-admin users hitting /admin* get redirected to /dashboard with a
+  // toast. This must run as an effect, not directly in the render body:
+  // calling navigate()/setNotification() during render triggers a setState
+  // on RouterProvider/AuthProvider while AppContent itself is still
+  // rendering, which React flags with "Cannot update a component while
+  // rendering a different component" (see React's rules of render purity).
+  React.useEffect(() => {
+    if (isAuthenticated && user?.role !== "ADMIN" && path.startsWith("/admin")) {
+      navigate("/dashboard", { replace: true });
+      setNotification({
+        type: "error",
+        message: "Access denied. Admin privileges are required for this section.",
+      });
+    }
+  }, [isAuthenticated, user, path, navigate, setNotification]);
 
   // Public route: Accept Invitation
   if (path.startsWith("/accept-invitation")) {
@@ -64,6 +81,21 @@ const AppContent: React.FC = () => {
       );
     }
 
+    if (path === "/profile") {
+      return (
+        <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col font-sans">
+          <Toast />
+          <Navbar />
+          <main className="flex-1">
+            <ProfilePage />
+          </main>
+          <footer className="py-6 border-t border-stone-200/80 text-center text-xs text-stone-500 bg-white/40">
+            Doctor Appointment & Healthcare Platform &copy; {new Date().getFullYear()} DocPulse
+          </footer>
+        </div>
+      );
+    }
+
     // Default landing page for admin is Invitations within AdminLayout
     return (
       <div className="min-h-screen bg-[#faf8f5] text-stone-900 font-sans">
@@ -75,14 +107,19 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // 2. If Non-Admin (DOCTOR or PATIENT):
-  // If attempting to access /admin*, notify and redirect to /dashboard
-  if (path.startsWith("/admin")) {
-    navigate("/dashboard", { replace: true });
-    setNotification({
-      type: "error",
-      message: "Access denied. Admin privileges are required for this section.",
-    });
+  if (path === "/profile") {
+    return (
+      <div className="min-h-screen bg-[#faf8f5] text-stone-900 flex flex-col font-sans">
+        <Toast />
+        <Navbar />
+        <main className="flex-1">
+          <ProfilePage />
+        </main>
+        <footer className="py-6 border-t border-stone-200/80 text-center text-xs text-stone-500 bg-white/40">
+          Doctor Appointment & Healthcare Platform &copy; {new Date().getFullYear()} DocPulse
+        </footer>
+      </div>
+    );
   }
 
   return (

@@ -8,6 +8,7 @@ import {
   ExternalLink,
   ChevronDown,
   Shield,
+  UserCog,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "../../context/RouterContext";
@@ -25,7 +26,7 @@ export interface NavItemConfig {
 }
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout } = useAuth();
   const { path, navigate } = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -82,7 +83,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
       {/* Persistent Left Sidebar (Desktop & Mobile Drawer) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-stone-200/90 flex flex-col justify-between transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-stone-200/90 flex flex-col transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -151,34 +152,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               );
             })}
           </div>
-        </div>
-
-        {/* Sidebar Footer: Operator Info & Quick Logout */}
-        <div className="p-3 border-t border-stone-100 bg-stone-50/50">
-          <div className="p-2.5 rounded-xl bg-white border border-stone-200/80 shadow-2xs mb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-orange-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                {user?.firstName ? user.firstName[0]?.toUpperCase() : user?.email?.[0]?.toUpperCase() || "A"}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-stone-900 truncate m-0">
-                  {user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Administrator"}
-                </p>
-                <p className="text-[11px] text-stone-500 truncate m-0">
-                  {user?.email}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-700 bg-rose-50/60 hover:bg-rose-100/80 border border-rose-200/70 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
-          </button>
         </div>
       </aside>
 
@@ -255,12 +228,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     <button
                       onClick={() => {
                         setProfileDropdownOpen(false);
-                        navigate("/dashboard");
+                        navigate("/profile");
                       }}
                       className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-50 hover:text-stone-900 transition-colors cursor-pointer"
                     >
-                      <span>Switch to User View</span>
-                      <ExternalLink className="w-3.5 h-3.5 text-stone-400" />
+                      <span>My Profile</span>
+                      <UserCog className="w-3.5 h-3.5 text-stone-400" />
                     </button>
 
                     <button

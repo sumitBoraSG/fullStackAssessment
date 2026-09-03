@@ -4,9 +4,6 @@ import {
   Clock,
   Stethoscope,
   X,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
   CalendarCheck,
   ChevronRight,
   ShieldCheck,
@@ -15,6 +12,8 @@ import { createAppointmentApi } from "../../api/appointmentApi";
 import type { DoctorAvailabilityDetails, AvailabilitySlot } from "../../types/doctor";
 import type { PatientAppointment } from "../../types/appointment";
 import { getISTCurrentTimeString, getISTTodayString } from "../../utils/istDateTime";
+import { Button } from "../ui/Button";
+import { Alert } from "../ui/Alert";
 
 interface AppointmentBookingModalProps {
   doctorDetails: DoctorAvailabilityDetails | null;
@@ -156,8 +155,12 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
 
     if (res.success && res.data) {
       setSuccessMsg("Appointment requested successfully!");
-      onSuccess(res.data);
+      const bookedAppointment = res.data;
+      // Defer onSuccess (which switches the parent's tab away from this
+      // modal, unmounting it) until after the same delay as onClose, so the
+      // success message above is actually visible before that happens.
       setTimeout(() => {
+        onSuccess(bookedAppointment);
         onClose();
       }, 1500);
     } else {
@@ -227,19 +230,9 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto pr-1 flex-1">
           {/* Notifications */}
-          {errorMsg && (
-            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span className="leading-relaxed font-medium">{errorMsg}</span>
-            </div>
-          )}
+          {errorMsg && <Alert variant="error">{errorMsg}</Alert>}
 
-          {successMsg && (
-            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <span className="leading-relaxed font-medium">{successMsg}</span>
-            </div>
-          )}
+          {successMsg && <Alert variant="success">{successMsg}</Alert>}
 
           {/* 1. Date Selection */}
           <div className="space-y-2.5">
@@ -391,23 +384,17 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
 
           {/* Submit Button */}
           <div className="pt-2">
-            <button
+            <Button
               type="submit"
+              variant="primary"
+              fullWidth
+              isLoading={isSubmitting}
+              loadingText="Booking Appointment..."
               disabled={isSubmitting || !selectedDate || !startTime || !endTime}
-              className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-600 via-orange-500 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold shadow-md shadow-amber-600/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Booking Appointment...</span>
-                </>
-              ) : (
-                <>
-                  <span>Confirm Appointment Request</span>
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+              <span>Confirm Appointment Request</span>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         </form>
       </div>

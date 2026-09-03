@@ -1,33 +1,43 @@
 import React from "react";
-import { Activity, LogOut, ShieldCheck, Stethoscope, UserCircle, Shield, LayoutDashboard } from "lucide-react";
+import {
+  Activity,
+  LogOut,
+  ShieldCheck,
+  Stethoscope,
+  UserCircle,
+  Shield,
+  LayoutDashboard,
+  UserCog,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "../context/RouterContext";
+import { Badge, type BadgeColor } from "./ui/Badge";
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout, isLoading } = useAuth();
   const { path, navigate } = useRouter();
 
-  const getRoleBadgeColor = (role?: string) => {
+  const getRoleBadgeColor = (role?: string): BadgeColor => {
     switch (role) {
       case "ADMIN":
-        return "bg-amber-50 text-amber-900 border-amber-200/90";
+        return "amber";
       case "DOCTOR":
-        return "bg-teal-50 text-teal-800 border-teal-200/90";
+        return "teal";
       case "PATIENT":
       default:
-        return "bg-orange-50 text-orange-800 border-orange-200/90";
+        return "orange";
     }
   };
 
   const getRoleIcon = (role?: string) => {
     switch (role) {
       case "ADMIN":
-        return <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />;
+        return ShieldCheck;
       case "DOCTOR":
-        return <Stethoscope className="w-3.5 h-3.5 text-teal-600" />;
+        return Stethoscope;
       case "PATIENT":
       default:
-        return <UserCircle className="w-3.5 h-3.5 text-orange-600" />;
+        return UserCircle;
     }
   };
 
@@ -113,15 +123,23 @@ export const Navbar: React.FC = () => {
                 </div>
               </div>
 
-              <span
-                className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${getRoleBadgeColor(
-                  user.role
-                )}`}
-              >
-                {getRoleIcon(user.role)}
+              <Badge color={getRoleBadgeColor(user.role)} icon={getRoleIcon(user.role)} size="xs">
                 {user.role}
-              </span>
+              </Badge>
             </div>
+
+            <button
+              onClick={() => navigate("/profile")}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs transition-all duration-200 active:scale-95 cursor-pointer ${
+                path === "/profile"
+                  ? "bg-amber-50 text-amber-900 border-amber-200/80"
+                  : "bg-white hover:bg-stone-100 text-stone-600 hover:text-stone-900 border-stone-200/80"
+              }`}
+              title="View your profile"
+            >
+              <UserCog className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Profile</span>
+            </button>
 
             <button
               onClick={() => logout()}

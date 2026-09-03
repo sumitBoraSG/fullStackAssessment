@@ -11,7 +11,7 @@ const skipInTestEnv = (): boolean => ENVIRONMENT === "test";
 export class RateLimitMiddleware {
   public general = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 1000,
 
     standardHeaders: true,
     legacyHeaders: false,
@@ -25,7 +25,7 @@ export class RateLimitMiddleware {
 
   public auth = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 15,
+    max: 300,
 
     standardHeaders: true,
     legacyHeaders: false,
@@ -39,7 +39,7 @@ export class RateLimitMiddleware {
 
   public invitation = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 30,
+    max: 500,
 
     standardHeaders: true,
     legacyHeaders: false,

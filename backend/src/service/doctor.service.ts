@@ -4,6 +4,7 @@ import logger from "@core/logger";
 
 import { DoctorRepository, FindAllDoctorsOptions } from "@database/repository/doctor.repository";
 import { AppointmentRepository } from "@database/repository/appointment.repository";
+import { Doctor } from "@database/model/Doctor";
 import constant from "@config/constant";
 import {
     buildISTRangeLiteral,
@@ -367,5 +368,42 @@ export class DoctorService {
         });
 
         return result;
+    }
+
+    public async getOwnProfile(doctorId: number) {
+        const doctor = await this.doctorRepository.findDoctorById(doctorId);
+        if (!doctor) {
+            throw new createError.NotFound(constant.DOCTOR_NOT_FOUND);
+        }
+        return this.toProfileResponse(doctor);
+    }
+
+    public async updateOwnProfile(doctorId: number, experienceYears: number) {
+        const existing = await this.doctorRepository.findDoctorById(doctorId);
+        if (!existing) {
+            throw new createError.NotFound(constant.DOCTOR_NOT_FOUND);
+        }
+
+        const updated = await this.doctorRepository.updateExperienceYears(
+            doctorId,
+            experienceYears,
+        );
+
+        logger.info("Doctor profile updated successfully", {
+            data: { doctorId, experienceYears },
+        });
+
+        return this.toProfileResponse(updated as Doctor);
+    }
+
+    private toProfileResponse(doctor: Doctor) {
+        return {
+            id: doctor.doctorId,
+            firstName: doctor.user?.firstName || "",
+            lastName: doctor.user?.lastName || "",
+            email: doctor.user?.email || "",
+            specialization: doctor.specialization?.name || "General Practitioner",
+            experienceYears: doctor.experienceYears || 0,
+        };
     }
 }

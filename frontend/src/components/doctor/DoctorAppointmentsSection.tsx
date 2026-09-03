@@ -12,8 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
-  Sparkles,
-  Loader2,
   Award,
   Mail,
   Check,
@@ -31,6 +29,10 @@ import type {
 import type { PaginationMeta } from "../../types/auth";
 import { useAuth } from "../../context/AuthContext";
 import { isISTDateTimeInPast } from "../../utils/istDateTime";
+import { Button } from "../ui/Button";
+import { Alert } from "../ui/Alert";
+import { EmptyState } from "../ui/EmptyState";
+import { Modal } from "../ui/Modal";
 
 export const DoctorAppointmentsSection: React.FC = () => {
   const { setNotification } = useAuth();
@@ -212,32 +214,19 @@ export const DoctorAppointmentsSection: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Top Banner Header */}
-      <div className="bg-white/80 border border-stone-200/80 rounded-3xl p-6 sm:p-8 shadow-sm backdrop-blur-md relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-teal-100/40 rounded-full blur-3xl pointer-events-none" />
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200/80 text-[11px] font-bold text-teal-900 mb-2 shadow-2xs">
-              <Sparkles className="w-3 h-3 text-teal-600" />
-              <span>Doctor Practice Management</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">
-              Patient Consultations & Appointments
-            </h1>
-            <p className="text-sm text-stone-500 mt-1 max-w-xl">
-              Review patient appointment requests, confirm or decline slots, and track completed medical visits.
-            </p>
-          </div>
-
-          <button
-            onClick={() => fetchAppointments()}
-            disabled={isLoading}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer disabled:opacity-50 shrink-0"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-            <span>Refresh Appointments</span>
-          </button>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <p className="text-sm text-stone-500 max-w-xl m-0">
+          Review patient appointment requests, confirm or decline slots, and track completed medical visits.
+        </p>
+        <Button
+          variant="secondary"
+          onClick={() => fetchAppointments()}
+          isLoading={isLoading}
+          loadingText="Refreshing..."
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          <span>Refresh</span>
+        </Button>
       </div>
 
       {/* Filter & Search Bar */}
@@ -391,12 +380,7 @@ export const DoctorAppointmentsSection: React.FC = () => {
       </div>
 
       {/* Error State */}
-      {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-3">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+      {errorMsg && <Alert variant="error">{errorMsg}</Alert>}
 
       {/* Appointment Cards Grid */}
       {isLoading ? (
@@ -416,29 +400,23 @@ export const DoctorAppointmentsSection: React.FC = () => {
           ))}
         </div>
       ) : appointments.length === 0 ? (
-        <div className="bg-white/80 border border-stone-200/80 rounded-3xl p-12 text-center space-y-4 shadow-2xs">
-          <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-200/80 text-teal-600 flex items-center justify-center mx-auto">
-            <CalendarCheck className="w-7 h-7" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-bold text-stone-900">No Appointments Found</h3>
-            <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
-              {hasActiveFilters
-                ? "No patient appointments match your selected filter criteria. Try clearing or adjusting your filters."
-                : "No patient appointments have been booked yet. As patients schedule consultations, they will appear here."}
-            </p>
-          </div>
-          {hasActiveFilters && (
-            <div className="pt-2">
-              <button
-                onClick={handleClearFilters}
-                className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition-all cursor-pointer"
-              >
+        <EmptyState
+          icon={CalendarCheck}
+          color="teal"
+          title="No Appointments Found"
+          description={
+            hasActiveFilters
+              ? "No patient appointments match your selected filter criteria. Try clearing or adjusting your filters."
+              : "No patient appointments have been booked yet. As patients schedule consultations, they will appear here."
+          }
+          action={
+            hasActiveFilters ? (
+              <Button variant="secondary" onClick={handleClearFilters}>
                 Clear Filters
-              </button>
-            </div>
-          )}
-        </div>
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {appointments.map((apt) => {
@@ -618,31 +596,56 @@ export const DoctorAppointmentsSection: React.FC = () => {
       )}
 
       {/* Status Action Confirmation Modal */}
-      {pendingAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border border-stone-200 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3">
-              <div
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border ${
-                  pendingAction.targetStatus === "REJECTED"
-                    ? "bg-rose-50 border-rose-200 text-rose-600"
-                    : pendingAction.targetStatus === "CONFIRMED"
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-600"
-                    : "bg-blue-50 border-blue-200 text-blue-600"
-                }`}
-              >
-                {pendingAction.targetStatus === "REJECTED" && <Ban className="w-5 h-5" />}
-                {pendingAction.targetStatus === "CONFIRMED" && <Check className="w-5 h-5" />}
-                {pendingAction.targetStatus === "COMPLETED" && <Award className="w-5 h-5" />}
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-stone-900">
-                  {pendingAction.actionLabel}?
-                </h3>
-                <p className="text-xs text-stone-500">Update appointment status</p>
-              </div>
-            </div>
-
+      <Modal
+        isOpen={!!pendingAction}
+        onClose={() => setPendingAction(null)}
+        title={pendingAction ? `${pendingAction.actionLabel}?` : ""}
+        description="Update appointment status"
+        icon={
+          pendingAction?.targetStatus === "REJECTED"
+            ? Ban
+            : pendingAction?.targetStatus === "CONFIRMED"
+            ? Check
+            : Award
+        }
+        iconColor={
+          pendingAction?.targetStatus === "REJECTED"
+            ? "rose"
+            : pendingAction?.targetStatus === "CONFIRMED"
+            ? "emerald"
+            : "blue"
+        }
+        disableClose={isUpdatingStatus}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setPendingAction(null)}
+              disabled={isUpdatingStatus}
+              fullWidth
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={
+                pendingAction?.targetStatus === "REJECTED"
+                  ? "danger"
+                  : pendingAction?.targetStatus === "CONFIRMED"
+                  ? "success"
+                  : "info"
+              }
+              onClick={handleConfirmStatusUpdate}
+              isLoading={isUpdatingStatus}
+              loadingText="Updating..."
+              fullWidth
+            >
+              Confirm Status Change
+            </Button>
+          </>
+        }
+      >
+        {pendingAction && (
+          <div className="space-y-5">
             <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/80 text-xs space-y-2">
               <div className="flex justify-between">
                 <span className="text-stone-500">Patient:</span>
@@ -672,42 +675,9 @@ export const DoctorAppointmentsSection: React.FC = () => {
               {pendingAction.targetStatus === "COMPLETED" &&
                 "Marking this visit as completed closes out the consultation."}
             </p>
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setPendingAction(null)}
-                disabled={isUpdatingStatus}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={handleConfirmStatusUpdate}
-                disabled={isUpdatingStatus}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-white text-xs font-bold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 ${
-                  pendingAction.targetStatus === "REJECTED"
-                    ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20"
-                    : pendingAction.targetStatus === "CONFIRMED"
-                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
-                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20"
-                }`}
-              >
-                {isUpdatingStatus ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Updating...</span>
-                  </>
-                ) : (
-                  <span>Confirm Status Change</span>
-                )}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

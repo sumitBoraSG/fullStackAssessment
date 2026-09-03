@@ -1,14 +1,23 @@
+import crypto from "crypto";
 import request from "supertest";
 import { getConnection } from "typeorm";
 import { app, setupIntegrationTest } from "../util/testApp";
 import {
   createAdminUser,
+  createInvitationRow,
   loginAgent,
   mockInvitationEmails,
   SPECIALIZATION_IDS,
 } from "../util/factories";
+import { UserRole } from "@database/enum/userRole";
 
 setupIntegrationTest();
+
+function rawTokenAndHash(): { token: string; hashedToken: string } {
+  const token = crypto.randomBytes(16).toString("hex");
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+  return { token, hashedToken };
+}
 
 describe("Invitation -> signup flow", () => {
   it("doctor invite -> signup persists specialization and experience", async () => {
@@ -33,7 +42,7 @@ describe("Invitation -> signup flow", () => {
       token,
       firstName: "Greg",
       lastName: "House",
-      password: "SecurePass123",
+      password: "SecurePass123!",
       specializationId: SPECIALIZATION_IDS.CARDIOLOGY,
       experienceYears: 12,
     });
@@ -66,7 +75,7 @@ describe("Invitation -> signup flow", () => {
       token,
       firstName: "Jane",
       lastName: "Doe",
-      password: "SecurePass123",
+      password: "SecurePass123!",
       dob: "1990-05-15",
       heightCm: 165,
       weightKg: 60,
@@ -101,7 +110,7 @@ describe("Invitation -> signup flow", () => {
       token,
       firstName: "Bad",
       lastName: "Spec",
-      password: "SecurePass123",
+      password: "SecurePass123!",
       specializationId: 9999,
       experienceYears: 5,
     });
@@ -129,7 +138,7 @@ describe("Invitation -> signup flow", () => {
       token,
       firstName: "No",
       lastName: "Profile",
-      password: "SecurePass123",
+      password: "SecurePass123!",
       // missing dob/heightCm/weightKg/bloodGroup
     });
 
@@ -153,7 +162,7 @@ describe("Invitation -> signup flow", () => {
         token,
         firstName: "Sneaky",
         lastName: "User",
-        password: "SecurePass123",
+        password: "SecurePass123!",
         role: "ADMIN",
         dob: "1990-01-01",
         heightCm: 170,
@@ -197,7 +206,7 @@ describe("Invitation -> signup flow", () => {
       token,
       firstName: "Roll",
       lastName: "Back",
-      password: "SecurePass123",
+      password: "SecurePass123!",
       specializationId: 9999,
       experienceYears: 5,
     });
@@ -220,7 +229,7 @@ describe("Invitation -> signup flow", () => {
       token,
       firstName: "Roll",
       lastName: "Back",
-      password: "SecurePass123",
+      password: "SecurePass123!",
       specializationId: SPECIALIZATION_IDS.GENERAL_PRACTITIONER,
       experienceYears: 5,
     });
@@ -241,7 +250,7 @@ describe("Invitation -> signup flow", () => {
       token,
       firstName: "Race",
       lastName: "Condition",
-      password: "SecurePass123",
+      password: "SecurePass123!",
       dob: "1990-01-01",
       heightCm: 170,
       weightKg: 70,
@@ -261,5 +270,192 @@ describe("Invitation -> signup flow", () => {
       ["concurrent@test.com"],
     );
     expect(users).toHaveLength(1);
+  });
+});
+
+describe("Accept invitation: invalid invitation states", () => {
+  const validPatientPayload = {
+    firstName: "Val",
+    lastName: "Id",
+    password: "SecurePass123!",
+    dob: "1990-01-01",
+    heightCm: 170,
+    weightKg: 70,
+    bloodGroup: "A+",
+  };
+
+  it("rejects an expired invitation token", async () => {
+    const admin = await createAdminUser();
+    const { token, hashedToken } = rawTokenAndHash();
+    await createInvitationRow("expired-accept@test.com", UserRole.PATIENT, hashedToken, admin.id, {
+      expiresAt: new Date(Date.now() - 60 * 60 * 1000),
+    });
+
+    const res = await request(app)
+      .post("/auth/accept-invitation")
+      .send({ token, ...validPatientPayload });
+
+    expect(res.status).toBe(400);
+
+    const users = await getConnection().query(`SELECT * FROM users WHERE email = $1`, [
+      "expired-accept@test.com",
+    ]);
+    expect(users).toHaveLength(0);
+  });
+
+  it("rejects an already-used invitation token", async () => {
+    const admin = await createAdminUser();
+    const { token, hashedToken } = rawTokenAndHash();
+    await createInvitationRow("used-accept@test.com", UserRole.PATIENT, hashedToken, admin.id, {
+      usedAt: new Date(),
+    });
+
+    const res = await request(app)
+      .post("/auth/accept-invitation")
+      .send({ token, ...validPatientPayload });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a revoked invitation token", async () => {
+    const admin = await createAdminUser();
+    const { token, hashedToken } = rawTokenAndHash();
+    await createInvitationRow("revoked-accept@test.com", UserRole.PATIENT, hashedToken, admin.id, {
+      revokedAt: new Date(),
+    });
+
+    const res = await request(app)
+      .post("/auth/accept-invitation")
+      .send({ token, ...validPatientPayload });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a garbage/non-existent invitation token", async () => {
+    const res = await request(app)
+      .post("/auth/accept-invitation")
+      .send({ token: "this-token-was-never-issued", ...validPatientPayload });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("Accept invitation: patient profile validation", () => {
+  async function issuePatientInvitation(email: string): Promise<string> {
+    const { getLastToken } = mockInvitationEmails();
+    const admin = await createAdminUser(`admin-${email}`);
+    const adminAgent = await loginAgent(app, admin.email, admin.password);
+    await adminAgent.post("/admin/invite").send({ email, role: "PATIENT" });
+    return getLastToken();
+  }
+
+  it("rejects a future date of birth", async () => {
+    const token = await issuePatientInvitation("patient-future-dob@test.com");
+
+    const futureDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+
+    const res = await request(app).post("/auth/accept-invitation").send({
+      token,
+      firstName: "Future",
+      lastName: "Dob",
+      password: "SecurePass123!",
+      dob: futureDate,
+      heightCm: 170,
+      weightKg: 70,
+      bloodGroup: "A+",
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a pre-1900 date of birth", async () => {
+    const token = await issuePatientInvitation("patient-old-dob@test.com");
+
+    const res = await request(app).post("/auth/accept-invitation").send({
+      token,
+      firstName: "Old",
+      lastName: "Dob",
+      password: "SecurePass123!",
+      dob: "1899-12-31",
+      heightCm: 170,
+      weightKg: 70,
+      bloodGroup: "A+",
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an invalid blood group", async () => {
+    const token = await issuePatientInvitation("patient-bad-bloodgroup@test.com");
+
+    const res = await request(app).post("/auth/accept-invitation").send({
+      token,
+      firstName: "Bad",
+      lastName: "Blood",
+      password: "SecurePass123!",
+      dob: "1990-01-01",
+      heightCm: 170,
+      weightKg: 70,
+      bloodGroup: "Z-",
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a password missing the required complexity (no special character)", async () => {
+    const token = await issuePatientInvitation("patient-weak-password@test.com");
+
+    const res = await request(app).post("/auth/accept-invitation").send({
+      token,
+      firstName: "Weak",
+      lastName: "Password",
+      password: "NoSpecialChar123",
+      dob: "1990-01-01",
+      heightCm: 170,
+      weightKg: 70,
+      bloodGroup: "A+",
+    });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("Accept invitation: individual doctor-field-missing cases", () => {
+  async function issueDoctorInvitation(email: string): Promise<string> {
+    const { getLastToken } = mockInvitationEmails();
+    const admin = await createAdminUser(`admin-${email}`);
+    const adminAgent = await loginAgent(app, admin.email, admin.password);
+    await adminAgent.post("/admin/invite").send({ email, role: "DOCTOR" });
+    return getLastToken();
+  }
+
+  it("rejects a doctor signup missing specializationId only", async () => {
+    const token = await issueDoctorInvitation("doctor-missing-spec@test.com");
+
+    const res = await request(app).post("/auth/accept-invitation").send({
+      token,
+      firstName: "Missing",
+      lastName: "Spec",
+      password: "SecurePass123!",
+      experienceYears: SPECIALIZATION_IDS.GENERAL_PRACTITIONER,
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a doctor signup missing experienceYears only", async () => {
+    const token = await issueDoctorInvitation("doctor-missing-exp@test.com");
+
+    const res = await request(app).post("/auth/accept-invitation").send({
+      token,
+      firstName: "Missing",
+      lastName: "Exp",
+      password: "SecurePass123!",
+      specializationId: SPECIALIZATION_IDS.GENERAL_PRACTITIONER,
+    });
+
+    expect(res.status).toBe(400);
   });
 });

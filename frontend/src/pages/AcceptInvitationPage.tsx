@@ -19,6 +19,12 @@ import { acceptInvitationApi, getInvitationDetailsApi } from "../api/authApi";
 import { getSpecializationsApi } from "../api/doctorApi";
 import { BLOOD_GROUPS, type BloodGroup, type InvitationDetails } from "../types/auth";
 import type { SpecializationItem } from "../types/doctor";
+import { isPasswordValid, getFailedPasswordRules } from "../utils/passwordPolicy";
+import { PasswordRequirementChecklist } from "../components/auth/PasswordRequirementChecklist";
+import { FormField } from "../components/ui/FormField";
+import { TextInput } from "../components/ui/TextInput";
+import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
 
 interface FormErrors {
   firstName?: string;
@@ -136,8 +142,8 @@ export const AcceptInvitationPage: React.FC = () => {
 
     if (!password) {
       errs.password = "Password is required";
-    } else if (password.length < 8) {
-      errs.password = "Password must be at least 8 characters";
+    } else if (!isPasswordValid(password)) {
+      errs.password = `Password must include: ${getFailedPasswordRules(password).join(", ")}`;
     }
 
     if (!confirmPassword) {
@@ -250,13 +256,6 @@ export const AcceptInvitationPage: React.FC = () => {
     }
   };
 
-  const fieldClasses = (hasError?: string) =>
-    `w-full pl-10 pr-3 py-2.5 rounded-xl bg-white border text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 shadow-2xs transition-all ${
-      hasError
-        ? "border-rose-400 focus:ring-rose-500/20 bg-rose-50/30 text-rose-900"
-        : "border-stone-200 focus:border-amber-500 focus:ring-amber-500/20"
-    }`;
-
   // State when no token exists in the URL
   if (!token) {
     return (
@@ -282,12 +281,9 @@ export const AcceptInvitationPage: React.FC = () => {
             </code>
           </div>
 
-          <button
-            onClick={() => navigate("/login")}
-            className="w-full py-3 px-4 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-700 text-sm font-semibold transition-all cursor-pointer shadow-2xs"
-          >
+          <Button variant="secondary" fullWidth onClick={() => navigate("/login")} className="py-3">
             Go to Login Page
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -323,12 +319,9 @@ export const AcceptInvitationPage: React.FC = () => {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate("/login")}
-            className="w-full py-3 px-4 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-700 text-sm font-semibold transition-all cursor-pointer shadow-2xs"
-          >
+          <Button variant="secondary" fullWidth onClick={() => navigate("/login")} className="py-3">
             Go to Login Page
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -363,12 +356,10 @@ export const AcceptInvitationPage: React.FC = () => {
 
           {/* General Error Banner */}
           {errors.general && (
-            <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3 animate-in fade-in duration-200 shadow-2xs">
-              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <span className="font-bold block text-rose-900">Registration Error</span>
-                <span>{errors.general}</span>
-              </div>
+            <div className="mb-6">
+              <Alert variant="error" title="Registration Error">
+                {errors.general}
+              </Alert>
             </div>
           )}
 
@@ -377,15 +368,12 @@ export const AcceptInvitationPage: React.FC = () => {
             {/* Name Fields Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* First Name */}
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  First Name <span className="text-rose-500">*</span>
-                </label>
+              <FormField label="First Name" required error={errors.firstName}>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
                     <User className="w-4 h-4" />
                   </div>
-                  <input
+                  <TextInput
                     type="text"
                     value={firstName}
                     onChange={(e) => {
@@ -395,24 +383,19 @@ export const AcceptInvitationPage: React.FC = () => {
                     }}
                     placeholder="John"
                     disabled={isSubmitting}
-                    className={fieldClasses(errors.firstName)}
+                    hasError={!!errors.firstName}
+                    className="pl-10 pr-3"
                   />
                 </div>
-                {errors.firstName && (
-                  <p className="mt-1 text-xs text-rose-600 font-medium">{errors.firstName}</p>
-                )}
-              </div>
+              </FormField>
 
               {/* Last Name */}
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                  Last Name <span className="text-rose-500">*</span>
-                </label>
+              <FormField label="Last Name" required error={errors.lastName}>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
                     <User className="w-4 h-4" />
                   </div>
-                  <input
+                  <TextInput
                     type="text"
                     value={lastName}
                     onChange={(e) => {
@@ -422,28 +405,20 @@ export const AcceptInvitationPage: React.FC = () => {
                     }}
                     placeholder="Doe"
                     disabled={isSubmitting}
-                    className={fieldClasses(errors.lastName)}
+                    hasError={!!errors.lastName}
+                    className="pl-10 pr-3"
                   />
                 </div>
-                {errors.lastName && (
-                  <p className="mt-1 text-xs text-rose-600 font-medium">{errors.lastName}</p>
-                )}
-              </div>
+              </FormField>
             </div>
 
             {/* Password */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-stone-700">
-                  Choose Password <span className="text-rose-500">*</span>
-                </label>
-                <span className="text-[11px] text-stone-400">Min. 8 characters</span>
-              </div>
+            <FormField label="Choose Password" required error={errors.password}>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
                   <Lock className="w-4 h-4" />
                 </div>
-                <input
+                <TextInput
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => {
@@ -453,7 +428,8 @@ export const AcceptInvitationPage: React.FC = () => {
                   }}
                   placeholder="••••••••"
                   disabled={isSubmitting}
-                  className={`${fieldClasses(errors.password)} pr-11`}
+                  hasError={!!errors.password}
+                  className="pl-10 pr-11"
                 />
                 <button
                   type="button"
@@ -463,21 +439,18 @@ export const AcceptInvitationPage: React.FC = () => {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.password && (
-                <p className="mt-1 text-xs text-rose-600 font-medium">{errors.password}</p>
-              )}
-            </div>
+              <div className="mt-2">
+                <PasswordRequirementChecklist password={password} />
+              </div>
+            </FormField>
 
             {/* Confirm Password */}
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                Confirm Password <span className="text-rose-500">*</span>
-              </label>
+            <FormField label="Confirm Password" required error={errors.confirmPassword}>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
                   <Lock className="w-4 h-4" />
                 </div>
-                <input
+                <TextInput
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => {
@@ -487,7 +460,8 @@ export const AcceptInvitationPage: React.FC = () => {
                   }}
                   placeholder="••••••••"
                   disabled={isSubmitting}
-                  className={`${fieldClasses(errors.confirmPassword)} pr-11`}
+                  hasError={!!errors.confirmPassword}
+                  className="pl-10 pr-11"
                 />
                 <button
                   type="button"
@@ -497,10 +471,7 @@ export const AcceptInvitationPage: React.FC = () => {
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.confirmPassword && (
-                <p className="mt-1 text-xs text-rose-600 font-medium">{errors.confirmPassword}</p>
-              )}
-            </div>
+            </FormField>
 
             {/* Role-specific fields */}
             {invitation.role === "DOCTOR" && (
@@ -540,11 +511,8 @@ export const AcceptInvitationPage: React.FC = () => {
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                    Years of Experience <span className="text-rose-500">*</span>
-                  </label>
-                  <input
+                <FormField label="Years of Experience" required error={errors.experienceYears}>
+                  <TextInput
                     type="number"
                     min={0}
                     max={80}
@@ -556,16 +524,9 @@ export const AcceptInvitationPage: React.FC = () => {
                     }}
                     placeholder="e.g. 5"
                     disabled={isSubmitting}
-                    className={`w-full px-3 py-2.5 rounded-xl bg-white border text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 shadow-2xs transition-all ${
-                      errors.experienceYears
-                        ? "border-rose-400 focus:ring-rose-500/20"
-                        : "border-stone-200 focus:border-amber-500 focus:ring-amber-500/20"
-                    }`}
+                    hasError={!!errors.experienceYears}
                   />
-                  {errors.experienceYears && (
-                    <p className="mt-1 text-xs text-rose-600 font-medium">{errors.experienceYears}</p>
-                  )}
-                </div>
+                </FormField>
               </div>
             )}
 
@@ -577,11 +538,8 @@ export const AcceptInvitationPage: React.FC = () => {
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                      Date of Birth <span className="text-rose-500">*</span>
-                    </label>
-                    <input
+                  <FormField label="Date of Birth" required error={errors.dob}>
+                    <TextInput
                       type="date"
                       value={dob}
                       onChange={(e) => {
@@ -590,16 +548,9 @@ export const AcceptInvitationPage: React.FC = () => {
                       }}
                       disabled={isSubmitting}
                       max={new Date().toISOString().slice(0, 10)}
-                      className={`w-full px-3 py-2.5 rounded-xl bg-white border text-sm text-stone-900 focus:outline-none focus:ring-2 shadow-2xs transition-all ${
-                        errors.dob
-                          ? "border-rose-400 focus:ring-rose-500/20"
-                          : "border-stone-200 focus:border-amber-500 focus:ring-amber-500/20"
-                      }`}
+                      hasError={!!errors.dob}
                     />
-                    {errors.dob && (
-                      <p className="mt-1 text-xs text-rose-600 font-medium">{errors.dob}</p>
-                    )}
-                  </div>
+                  </FormField>
 
                   <div>
                     <label className="block text-xs font-semibold text-stone-700 mb-1.5">
@@ -631,11 +582,8 @@ export const AcceptInvitationPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                      Height (cm) <span className="text-rose-500">*</span>
-                    </label>
-                    <input
+                  <FormField label="Height (cm)" required error={errors.heightCm}>
+                    <TextInput
                       type="number"
                       min={30}
                       max={300}
@@ -647,22 +595,12 @@ export const AcceptInvitationPage: React.FC = () => {
                       }}
                       placeholder="e.g. 170"
                       disabled={isSubmitting}
-                      className={`w-full px-3 py-2.5 rounded-xl bg-white border text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 shadow-2xs transition-all ${
-                        errors.heightCm
-                          ? "border-rose-400 focus:ring-rose-500/20"
-                          : "border-stone-200 focus:border-amber-500 focus:ring-amber-500/20"
-                      }`}
+                      hasError={!!errors.heightCm}
                     />
-                    {errors.heightCm && (
-                      <p className="mt-1 text-xs text-rose-600 font-medium">{errors.heightCm}</p>
-                    )}
-                  </div>
+                  </FormField>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-                      Weight (kg) <span className="text-rose-500">*</span>
-                    </label>
-                    <input
+                  <FormField label="Weight (kg)" required error={errors.weightKg}>
+                    <TextInput
                       type="number"
                       min={2}
                       max={500}
@@ -674,16 +612,9 @@ export const AcceptInvitationPage: React.FC = () => {
                       }}
                       placeholder="e.g. 65"
                       disabled={isSubmitting}
-                      className={`w-full px-3 py-2.5 rounded-xl bg-white border text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 shadow-2xs transition-all ${
-                        errors.weightKg
-                          ? "border-rose-400 focus:ring-rose-500/20"
-                          : "border-stone-200 focus:border-amber-500 focus:ring-amber-500/20"
-                      }`}
+                      hasError={!!errors.weightKg}
                     />
-                    {errors.weightKg && (
-                      <p className="mt-1 text-xs text-rose-600 font-medium">{errors.weightKg}</p>
-                    )}
-                  </div>
+                  </FormField>
                 </div>
               </div>
             )}
@@ -697,23 +628,16 @@ export const AcceptInvitationPage: React.FC = () => {
             </div>
 
             {/* Submit Button */}
-            <button
+            <Button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full mt-3 py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 via-orange-500 to-amber-700 hover:from-amber-500 hover:via-orange-400 hover:to-amber-600 text-white text-sm font-bold shadow-md shadow-amber-600/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              fullWidth
+              isLoading={isSubmitting}
+              loadingText="Creating Account..."
+              className="mt-3 py-3.5"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Creating Account...</span>
-                </>
-              ) : (
-                <>
-                  <span>Create & Activate Account</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+              <span>Create & Activate Account</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
           </form>
 
           {/* Already have an account */}

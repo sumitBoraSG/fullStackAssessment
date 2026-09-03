@@ -98,16 +98,19 @@ Copy `backend/.env.example` to `backend/.env` and configure:
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
+| `TEST_DATABASE_URL` | Separate, disposable PostgreSQL database used by the backend test suite (its tables are truncated between tests — never point this at real data) |
 | `PORT` | Backend server port (default: 3000) |
-| `JWT_SECRET` | Secret key for JWT access tokens |
-| `REFRESH_TOKEN_SECRET` | Secret key for JWT refresh tokens |
-| `ACCESS_TOKEN_EXPIRES_IN` | Access token expiry (e.g. `7d`) |
-| `REFRESH_TOKEN_EXPIRES_IN` | Refresh token expiry (e.g. `15m`) |
+| `JWT_SECRET` | Secret key for JWT access tokens (required at startup) |
+| `REFRESH_TOKEN_SECRET` | Secret key for JWT refresh tokens (required at startup) |
+| `ACCESS_TOKEN_EXPIRES_IN` | Access token expiry (e.g. `15m`) |
+| `REFRESH_TOKEN_EXPIRES_IN` | Refresh token expiry (e.g. `7d`) |
 | `SMTP_HOST` | Email SMTP host |
 | `SMTP_PORT` | Email SMTP port |
 | `SMTP_USER` | Email sender address |
 | `SMTP_PASSWORD` | Email app password |
-| `FRONTEND_URL` | Frontend URL for CORS & email links |
+| `FRONTEND_URL` | Frontend URL for CORS & email links (required at startup) |
+
+`DATABASE_URL`, `JWT_SECRET`, `REFRESH_TOKEN_SECRET`, and `FRONTEND_URL` are validated at process startup — the backend refuses to boot if any is missing. See [`TECHNICAL_DOCUMENTATION.md`](TECHNICAL_DOCUMENTATION.md) for the full technical reference, including a database schema diagram.
 
 ## Available Scripts
 
