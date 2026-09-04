@@ -25,6 +25,7 @@ class App {
     this.kernel.initBodyParser(this.app);
     this.kernel.addCommonMiddleware(this.app);
     this.kernel.initCookieParser(this.app);
+    this.kernel.initSwagger(this.app);
     await this.kernel.databaseConnection();
     this.kernel.initTranslation(this.app);
     this.router.routes(this.app);

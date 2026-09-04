@@ -25,6 +25,7 @@ import { FormField } from "../components/ui/FormField";
 import { TextInput } from "../components/ui/TextInput";
 import { Button } from "../components/ui/Button";
 import { Alert } from "../components/ui/Alert";
+import { AuthLayout } from "../components/auth/AuthLayout";
 
 interface FormErrors {
   firstName?: string;
@@ -259,8 +260,8 @@ export const AcceptInvitationPage: React.FC = () => {
   // State when no token exists in the URL
   if (!token) {
     return (
-      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-md bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-6 sm:p-8 shadow-xs text-center space-y-5 text-[#141413]">
+      <AuthLayout>
+        <div className="w-full bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-6 sm:p-8 shadow-xs text-center space-y-5 text-[#141413]">
           <div className="w-11 h-11 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#8E2A22] flex items-center justify-center mx-auto shadow-xs">
             <AlertTriangle className="w-5 h-5" />
           </div>
@@ -285,27 +286,27 @@ export const AcceptInvitationPage: React.FC = () => {
             Go to Login Page
           </Button>
         </div>
-      </div>
+      </AuthLayout>
     );
   }
 
   // Loading state while the invitation's role/email is being resolved
   if (isLoadingInvitation) {
     return (
-      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col items-center gap-3 text-[#141413]/60">
+      <AuthLayout>
+        <div className="w-full flex flex-col items-center gap-3 text-[#141413]/60">
           <Loader2 className="w-6 h-6 animate-spin text-[#141413]" />
           <span className="text-xs font-medium text-[#141413]">Verifying your invitation...</span>
         </div>
-      </div>
+      </AuthLayout>
     );
   }
 
   // Invitation is invalid/expired/used/revoked
   if (invitationError || !invitation) {
     return (
-      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-md bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-6 sm:p-8 shadow-xs text-center space-y-5 text-[#141413]">
+      <AuthLayout>
+        <div className="w-full bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-6 sm:p-8 shadow-xs text-center space-y-5 text-[#141413]">
           <div className="w-11 h-11 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#8E2A22] flex items-center justify-center mx-auto shadow-xs">
             <AlertTriangle className="w-5 h-5" />
           </div>
@@ -323,26 +324,25 @@ export const AcceptInvitationPage: React.FC = () => {
             Go to Login Page
           </Button>
         </div>
-      </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-lg">
-        <div className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-6 sm:p-8 shadow-xs text-[#141413]">
+    <AuthLayout formClassName="max-w-lg">
+      <div className="w-full bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-7 sm:p-9 shadow-xs text-[#141413]">
           {/* Header */}
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-11 h-11 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] mb-3 text-[#141413] shadow-xs">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-11 h-11 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] mb-4 text-[#141413] shadow-xs">
               <UserPlus className="w-5 h-5" />
             </div>
 
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#FAF8F5] border border-[#D8D0BF] text-[11px] font-medium text-[#141413] mb-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#FAF8F5] border border-[#D8D0BF] text-[11px] font-medium text-[#141413] mb-3">
               <Sparkles className="w-3 h-3 text-[#141413]" />
               <span>Invitation Verified &bull; {invitation.role === "DOCTOR" ? "Doctor" : "Patient"} Account</span>
             </div>
 
-            <h1 className="text-2xl font-semibold tracking-tight text-[#141413] m-0 mb-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-[#141413] m-0 mb-1.5">
               Complete Your Registration
             </h1>
             <p className="text-xs sm:text-sm text-[#141413]/60 leading-relaxed max-w-sm mx-auto m-0">
@@ -362,7 +362,7 @@ export const AcceptInvitationPage: React.FC = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* Name Fields Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* First Name */}
               <FormField label="First Name" required error={errors.firstName}>
                 <div className="relative">
@@ -471,7 +471,7 @@ export const AcceptInvitationPage: React.FC = () => {
 
             {/* Role-specific fields */}
             {invitation.role === "DOCTOR" && (
-              <div className="pt-2 border-t border-[#D8D0BF] space-y-3.5">
+              <div className="pt-4 border-t border-[#D8D0BF] space-y-4">
                 <p className="text-xs font-semibold text-[#141413] flex items-center gap-1.5 m-0">
                   <Stethoscope className="w-3.5 h-3.5 text-[#141413]/70" />
                   <span>Doctor Profile</span>
@@ -527,13 +527,13 @@ export const AcceptInvitationPage: React.FC = () => {
             )}
 
             {invitation.role === "PATIENT" && (
-              <div className="pt-2 border-t border-[#D8D0BF] space-y-3.5">
+              <div className="pt-4 border-t border-[#D8D0BF] space-y-4">
                 <p className="text-xs font-semibold text-[#141413] flex items-center gap-1.5 m-0">
                   <HeartPulse className="w-3.5 h-3.5 text-[#141413]/70" />
                   <span>Patient Profile</span>
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField label="Date of Birth" required error={errors.dob}>
                     <TextInput
                       type="date"
@@ -645,8 +645,7 @@ export const AcceptInvitationPage: React.FC = () => {
               Already registered? Sign in instead &rarr;
             </button>
           </div>
-        </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 };

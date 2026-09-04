@@ -17,6 +17,7 @@
       "@config/*": ["src/config/*"],
       "@core/*": ["src/core/*"],
       "@database/*": ["src/database/*"],
+      "@docs/*": ["src/docs/*"],
       "@middleware/*": ["src/middleware/*"],
       "@service/*": ["src/service/*"],
       "@type/*": ["src/type/*"],

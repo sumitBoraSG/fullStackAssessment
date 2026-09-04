@@ -71,6 +71,31 @@ describe("DoctorAvailabilitySection", () => {
     await waitFor(() => expect(screen.queryByText("Availability slot added successfully!")).not.toBeInTheDocument());
   });
 
+  it("sends exactly {date, startTime, endTime} to POST /doctor/availability for the default form values", async () => {
+    let capturedBody: Record<string, unknown> | undefined;
+    server.use(
+      http.post(`${BASE}/doctor/availability`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          success: true,
+          data: { id: 1, ...capturedBody, createdAt: new Date().toISOString() },
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<DoctorAvailabilitySection />);
+    await screen.findByText("No Availability Slots Set");
+
+    await user.click(screen.getByRole("button", { name: /add availability slot/i }));
+
+    await waitFor(() => expect(capturedBody).toEqual({
+      date: "2099-06-05",
+      startTime: "09:00",
+      endTime: "12:00",
+    }));
+  });
+
   it("surfaces an AVAILABILITY_OVERLAP error from the server", async () => {
     server.use(
       http.post(`${BASE}/doctor/availability`, () =>

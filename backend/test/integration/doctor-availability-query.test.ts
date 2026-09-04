@@ -122,6 +122,47 @@ describe("GET /doctors/:doctorId/availability (public, busy-adjusted)", () => {
     expect(res.body.data.availability).toHaveLength(1);
   });
 
+  it("splits one window into three free segments around two separate busy appointments", async () => {
+    const doctor = await createDoctorUser("doc-multi-busy@test.com", "Pass123456");
+    const patientA = await createPatientUser("pat-multi-busy-a@test.com", "Pass123456");
+    const patientB = await createPatientUser("pat-multi-busy-b@test.com", "Pass123456");
+
+    // One window spanning 1h -> 7h from now, with two non-adjacent busy
+    // ranges carved out of it: 2h-3h and 4h-5h.
+    await createAvailabilityRow(doctor.id, isoRange(60 * 60 * 1000, 7 * 60 * 60 * 1000));
+
+    const busy1Start = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const busy1End = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    const busy2Start = new Date(Date.now() + 4 * 60 * 60 * 1000);
+    const busy2End = new Date(Date.now() + 5 * 60 * 60 * 1000);
+
+    await createAppointmentRow(
+      doctor.id,
+      patientA.id,
+      "CONFIRMED",
+      `[${busy1Start.toISOString()},${busy1End.toISOString()})`,
+    );
+    await createAppointmentRow(
+      doctor.id,
+      patientB.id,
+      "PENDING",
+      `[${busy2Start.toISOString()},${busy2End.toISOString()})`,
+    );
+
+    const agent = await loginAgent(app, patientA.email, patientA.password);
+    const res = await agent.get(`/doctors/${doctor.id}/availability`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.availability).toHaveLength(3);
+
+    const [first, second, third] = res.body.data.availability;
+    expect([first.id, second.id, third.id]).toEqual([first.id, first.id, first.id]);
+    expect(first.endTime).toBe(formatTimeIST(busy1Start));
+    expect(second.startTime).toBe(formatTimeIST(busy1End));
+    expect(second.endTime).toBe(formatTimeIST(busy2Start));
+    expect(third.startTime).toBe(formatTimeIST(busy2End));
+  });
+
   it("returns 404 for a non-existent doctor id", async () => {
     const patient = await createPatientUser("pat-noexist-doc@test.com", "Pass123456");
     const agent = await loginAgent(app, patient.email, patient.password);

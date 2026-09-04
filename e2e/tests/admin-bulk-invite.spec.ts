@@ -29,7 +29,13 @@ let csvPath: string;
 test.beforeAll(async () => {
   await resetE2eDatabase(TEST_DATABASE_URL!);
 
-  const csvContent = ["email,role", `${CSV_SUCCESS_EMAIL},PATIENT`, "not-an-email,DOCTOR"].join("\n");
+  // PATIENT is deliberately not a valid bulk-invite role (see
+  // backend/src/api/validator/bulkInvite.validation.ts — patients
+  // self-register via POST /auth/patient/self-register instead of being
+  // admin-invited), so the "successful" row here must be ADMIN or DOCTOR,
+  // not PATIENT, or both rows fail validation instead of exercising the
+  // intended partial-success path.
+  const csvContent = ["email,role", `${CSV_SUCCESS_EMAIL},DOCTOR`, "not-an-email,DOCTOR"].join("\n");
 
   csvPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "e2e-bulk-invite-")), "invites.csv");
   fs.writeFileSync(csvPath, csvContent, "utf-8");

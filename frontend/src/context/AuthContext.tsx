@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import type { User } from "../types/auth";
 import { loginApi, logoutApi } from "../api/authApi";
 import {
@@ -38,6 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [notification, setNotification] = useState<Notification | null>(null);
+  const userRef = useRef(user);
+  userRef.current = user;
 
   useEffect(() => {
     if (notification) {
@@ -50,6 +52,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const handleSessionExpired = () => {
+      // Only surface this if the user still looked logged in - a stray 401
+      // while already unauthenticated shouldn't pop up a confusing
+      // "session expired" toast out of nowhere.
+      if (userRef.current) {
+        setNotification({
+          type: "info",
+          message: "Your session has expired. Please sign in again.",
+        });
+      }
       setUser(null);
     };
 

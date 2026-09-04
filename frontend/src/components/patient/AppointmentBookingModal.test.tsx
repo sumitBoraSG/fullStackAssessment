@@ -178,6 +178,49 @@ describe("AppointmentBookingModal", () => {
     expect(onSuccess).toHaveBeenCalledTimes(1);
   });
 
+  it("sends exactly {doctorId, date, startTime, endTime} to POST /appointments for the selected slot", async () => {
+    let capturedBody: Record<string, unknown> | undefined;
+    server.use(
+      http.post(`${BASE}/appointments`, async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          success: true,
+          data: {
+            id: 100,
+            status: "PENDING",
+            date: capturedBody.date,
+            startTime: capturedBody.startTime,
+            endTime: capturedBody.endTime,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            doctor: { doctorId: capturedBody.doctorId, firstName: "Doc", lastName: "Tor", specialization: "General Practitioner", experienceYears: 5 },
+          },
+        });
+      }),
+    );
+
+    const user = userEvent.setup({ delay: null });
+    render(
+      <AppointmentBookingModal
+        doctorDetails={buildDetails([{ id: 1, date: "2099-06-05", startTime: "09:00", endTime: "10:00" }])}
+        isOpen
+        onClose={() => {}}
+        onSuccess={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByText(/Jun 5/));
+    await user.click(screen.getByText("9:00 AM - 9:30 AM"));
+    await user.click(screen.getByRole("button", { name: /confirm appointment request/i }));
+
+    await waitFor(() => expect(capturedBody).toEqual({
+      doctorId: baseDoctor.id,
+      date: "2099-06-05",
+      startTime: "09:00",
+      endTime: "09:30",
+    }));
+  });
+
   it("shows a server error message (e.g. DOCTOR_NOT_AVAILABLE) without closing the modal", async () => {
     server.use(
       http.post(`${BASE}/appointments`, () =>

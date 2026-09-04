@@ -115,4 +115,54 @@ describe("Patient profile: PATCH /patient/profile", () => {
     const res = await agent.patch("/patient/profile").send({ heightCm: 180 });
     expect(res.status).toBe(403);
   });
+
+  it("accepts the boundary values (heightCm 30 and 300, weightKg 2 and 500)", async () => {
+    const low = await createPatientUser("patient-boundary-low@test.com", "Pass123456");
+    const lowAgent = await loginAgent(app, low.email, low.password);
+    const lowRes = await lowAgent.patch("/patient/profile").send({ heightCm: 30, weightKg: 2 });
+    expect(lowRes.status).toBe(200);
+    expect(lowRes.body.data.heightCm).toBe(30);
+    expect(lowRes.body.data.weightKg).toBe(2);
+
+    const high = await createPatientUser("patient-boundary-high@test.com", "Pass123456");
+    const highAgent = await loginAgent(app, high.email, high.password);
+    const highRes = await highAgent.patch("/patient/profile").send({ heightCm: 300, weightKg: 500 });
+    expect(highRes.status).toBe(200);
+    expect(highRes.body.data.heightCm).toBe(300);
+    expect(highRes.body.data.weightKg).toBe(500);
+  });
+
+  it("rejects a below-minimum height (29) and weight (1)", async () => {
+    const patient = await createPatientUser("patient-belowmin@test.com", "Pass123456");
+    const agent = await loginAgent(app, patient.email, patient.password);
+
+    const heightRes = await agent.patch("/patient/profile").send({ heightCm: 29 });
+    expect(heightRes.status).toBe(400);
+
+    const weightRes = await agent.patch("/patient/profile").send({ weightKg: 1 });
+    expect(weightRes.status).toBe(400);
+  });
+
+  it("rejects an attempt to change bloodGroup or dob through this endpoint — both are permanent once set at signup", async () => {
+    // createPatientUser seeds dob='1990-01-01'/bloodGroup='O+' by default.
+    const patient = await createPatientUser("patient-immutable@test.com", "Pass123456");
+    const agent = await loginAgent(app, patient.email, patient.password);
+
+    // Neither field is in updatePatientProfileSchema, and Joi rejects
+    // unknown keys by default, so each request is a 400 — never a silent
+    // no-op partial update of just the recognized fields.
+    const bloodGroupRes = await agent
+      .patch("/patient/profile")
+      .send({ heightCm: 175, bloodGroup: "AB+" });
+    expect(bloodGroupRes.status).toBe(400);
+
+    const dobRes = await agent.patch("/patient/profile").send({ heightCm: 175, dob: "2000-01-01" });
+    expect(dobRes.status).toBe(400);
+
+    const followUp = await agent.get("/patient/profile");
+    expect(followUp.body.data.bloodGroup).toBe("O+");
+    expect(followUp.body.data.dob).toBe("1990-01-01");
+    // Neither rejected request's heightCm should have leaked through either.
+    expect(followUp.body.data.heightCm).toBe(170);
+  });
 });

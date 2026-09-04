@@ -161,6 +161,27 @@ describe("AdminInvitationsPage", () => {
     expect(await screen.findByText(/Invitation sent successfully/i)).toBeInTheDocument();
   });
 
+  it("only offers Doctor and Admin in the Invite User modal's role selector: patients self-register instead", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("No invitations found");
+
+    await user.click(screen.getByRole("button", { name: "Invite User" }));
+    await screen.findByRole("heading", { name: "Invite New User" });
+
+    expect(screen.getByRole("button", { name: "Doctor" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Admin" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Patient" })).not.toBeInTheDocument();
+  });
+
+  it("still offers Patient in the historical role filter dropdown", async () => {
+    renderPage();
+    await screen.findByText("No invitations found");
+
+    const [, roleSelect] = screen.getAllByRole("combobox");
+    expect(roleSelect).toHaveTextContent("Patient");
+  });
+
   it("shows a validation error and does not submit the single-invite form for an invalid email", async () => {
     // Note: this exercises the app's own validateInvite() message, which is
     // only reachable because the form has noValidate (see the bug fixed
@@ -263,7 +284,7 @@ describe("AdminInvitationsPage", () => {
       http.post(`${BASE}/admin/invitations/bulk`, () =>
         HttpResponse.json({
           success: true,
-          data: { total: 1, successful: 1, failed: 0, results: [{ email: "bulk@test.com", role: "PATIENT", status: "INVITED" }] },
+          data: { total: 1, successful: 1, failed: 0, results: [{ email: "bulk@test.com", role: "DOCTOR", status: "INVITED" }] },
         }),
       ),
     );
@@ -276,7 +297,7 @@ describe("AdminInvitationsPage", () => {
     expect(await screen.findByText("Bulk Invitations")).toBeInTheDocument();
 
     const fileInput = document.querySelector("#bulk-csv-upload-input") as HTMLInputElement;
-    const file = new File(["email,role\nbulk@test.com,PATIENT"], "bulk.csv", { type: "text/csv" });
+    const file = new File(["email,role\nbulk@test.com,DOCTOR"], "bulk.csv", { type: "text/csv" });
     await user.upload(fileInput, file);
     await user.click(screen.getByRole("button", { name: /upload & invite/i }));
 

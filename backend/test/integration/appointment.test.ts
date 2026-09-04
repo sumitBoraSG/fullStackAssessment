@@ -24,6 +24,14 @@ function dateTimeAt(offsetMs: number): { date: string; time: string } {
   return { date: formatDateIST(d), time: formatTimeIST(d) };
 }
 
+const HOUR = 60 * 60 * 1000;
+
+function bookingPayload(doctorId: number, startOffsetMs: number, endOffsetMs: number) {
+  const start = dateTimeAt(startOffsetMs);
+  const end = dateTimeAt(endOffsetMs);
+  return { doctorId, date: start.date, startTime: start.time, endTime: end.time };
+}
+
 describe("Appointment correctness & concurrency", () => {
   it("rejects booking a past date", async () => {
     const doctor = await createDoctorUser("doc-past@test.com", "Pass123456");
@@ -239,6 +247,92 @@ describe("Appointment correctness & concurrency", () => {
       [appointmentId],
     );
     expect(row.status).toBe("CONFIRMED");
+  });
+
+  it("returns a deterministic 409 APPOINTMENT_STATUS_CONFLICT when the compare-and-swap loses, independent of HTTP timing", async () => {
+    // Unlike the two race tests above (which rely on real concurrent
+    // requests and can non-deterministically land on 200/400/409), this
+    // forces the exact "lost race" branch every time: the repository's
+    // compare-and-swap update is mocked to simulate another request having
+    // already flipped the row's status underneath it.
+    const doctor = await createDoctorUser("doc-conflict-deterministic@test.com", "Pass123456");
+    const patient = await createPatientUser("pat-conflict-deterministic@test.com", "Pass123456");
+    const appointmentId = await createAppointmentRow(
+      doctor.id,
+      patient.id,
+      "PENDING",
+      isoRange(60 * 60 * 1000, 90 * 60 * 1000),
+    );
+
+    const { AppointmentRepository } = await import(
+      "../../src/database/repository/appointment.repository"
+    );
+
+    const spy = jest
+      .spyOn(AppointmentRepository.prototype, "updateAppointmentStatusByDoctor")
+      .mockImplementationOnce(async (id: number) => {
+        // A concurrent request "wins" first, moving the row to REJECTED.
+        await getConnection().query(`UPDATE appointments SET status = 'REJECTED' WHERE id = $1`, [id]);
+        return { affected: 0, raw: [], generatedMaps: [] };
+      });
+
+    const doctorAgent = await loginAgent(app, doctor.email, doctor.password);
+    const res = await doctorAgent
+      .patch(`/doctor/appointments/${appointmentId}/status`)
+      .send({ status: "CONFIRMED" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe(
+      "This appointment was already updated by another request. Please refresh and try again.",
+    );
+
+    const [row] = await getConnection().query(`SELECT status FROM appointments WHERE id = $1`, [appointmentId]);
+    expect(row.status).toBe("REJECTED");
+
+    spy.mockRestore();
+  });
+
+  it("rejects a doctor-only status sent to the patient cancellation endpoint", async () => {
+    const doctor = await createDoctorUser("doc-crossrole-1@test.com", "Pass123456");
+    const patient = await createPatientUser("pat-crossrole-1@test.com", "Pass123456");
+    const appointmentId = await createAppointmentRow(
+      doctor.id,
+      patient.id,
+      "PENDING",
+      isoRange(60 * 60 * 1000, 90 * 60 * 1000),
+    );
+
+    const patientAgent = await loginAgent(app, patient.email, patient.password);
+
+    for (const status of ["CONFIRMED", "REJECTED", "COMPLETED"]) {
+      const res = await patientAgent
+        .patch(`/appointments/${appointmentId}/status`)
+        .send({ status });
+      expect(res.status).toBe(400);
+    }
+
+    const [row] = await getConnection().query(`SELECT status FROM appointments WHERE id = $1`, [appointmentId]);
+    expect(row.status).toBe("PENDING");
+  });
+
+  it("rejects CANCELLED sent to the doctor status endpoint — cancellation is patient-only", async () => {
+    const doctor = await createDoctorUser("doc-crossrole-2@test.com", "Pass123456");
+    const patient = await createPatientUser("pat-crossrole-2@test.com", "Pass123456");
+    const appointmentId = await createAppointmentRow(
+      doctor.id,
+      patient.id,
+      "PENDING",
+      isoRange(60 * 60 * 1000, 90 * 60 * 1000),
+    );
+
+    const doctorAgent = await loginAgent(app, doctor.email, doctor.password);
+    const res = await doctorAgent
+      .patch(`/doctor/appointments/${appointmentId}/status`)
+      .send({ status: "CANCELLED" });
+    expect(res.status).toBe(400);
+
+    const [row] = await getConnection().query(`SELECT status FROM appointments WHERE id = $1`, [appointmentId]);
+    expect(row.status).toBe("PENDING");
   });
 
   it("rejects booking with startTime >= endTime", async () => {
@@ -613,5 +707,223 @@ describe("Appointment email notifications", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe("CONFIRMED");
     expect(emails.confirmed).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Booking-abuse limits", () => {
+  it("rejects a 3rd active booking with the same doctor once the per-doctor cap is reached", async () => {
+    const doctor = await createDoctorUser("doc-cap-perdoc@test.com", "Pass123456");
+    await createAvailabilityRow(doctor.id, isoRange(HOUR, 10 * HOUR));
+    const patient = await createPatientUser("pat-cap-perdoc@test.com", "Pass123456");
+
+    await createAppointmentRow(doctor.id, patient.id, "PENDING", isoRange(HOUR, HOUR + 30 * 60 * 1000));
+    await createAppointmentRow(doctor.id, patient.id, "CONFIRMED", isoRange(2 * HOUR, 2 * HOUR + 30 * 60 * 1000));
+
+    const patientAgent = await loginAgent(app, patient.email, patient.password);
+    const res = await patientAgent
+      .post("/appointments")
+      .send(bookingPayload(doctor.id, 3 * HOUR, 3 * HOUR + 30 * 60 * 1000));
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe(
+      "You already have the maximum number of active appointments with this doctor. Please wait for an existing request to be resolved before booking another.",
+    );
+
+    const [{ count }] = await getConnection().query(
+      `SELECT count(*)::int FROM appointments WHERE doctor_id = $1 AND patient_id = $2 AND status IN ('PENDING','CONFIRMED')`,
+      [doctor.id, patient.id],
+    );
+    expect(count).toBe(2);
+  });
+
+  it("two concurrent bookings against the same doctor can't jointly exceed the per-doctor cap", async () => {
+    const doctor = await createDoctorUser("doc-cap-perdoc-race@test.com", "Pass123456");
+    await createAvailabilityRow(doctor.id, isoRange(HOUR, 10 * HOUR));
+    const patient = await createPatientUser("pat-cap-perdoc-race@test.com", "Pass123456");
+
+    // One existing active appointment — cap is 2, so exactly one of the two
+    // concurrent requests below must succeed and the other must be rejected.
+    await createAppointmentRow(doctor.id, patient.id, "CONFIRMED", isoRange(HOUR, HOUR + 30 * 60 * 1000));
+
+    const patientAgent = await loginAgent(app, patient.email, patient.password);
+
+    const [resA, resB] = await Promise.all([
+      patientAgent.post("/appointments").send(bookingPayload(doctor.id, 2 * HOUR, 2 * HOUR + 30 * 60 * 1000)),
+      patientAgent.post("/appointments").send(bookingPayload(doctor.id, 3 * HOUR, 3 * HOUR + 30 * 60 * 1000)),
+    ]);
+
+    const statuses = [resA.status, resB.status].sort();
+    expect(statuses).toEqual([201, 409]);
+
+    const [{ count }] = await getConnection().query(
+      `SELECT count(*)::int FROM appointments WHERE doctor_id = $1 AND patient_id = $2 AND status IN ('PENDING','CONFIRMED')`,
+      [doctor.id, patient.id],
+    );
+    expect(count).toBe(2);
+  });
+
+  it("rejects a new booking with any doctor once the global active-appointment cap is reached", async () => {
+    const patient = await createPatientUser("pat-cap-total@test.com", "Pass123456");
+
+    // 5 active appointments spread across 5 different doctors, staggered in
+    // time (the per-patient GIST exclusion constraint forbids the same
+    // patient holding two overlapping appointments even with different
+    // doctors), reaching the global cap without touching the per-doctor cap.
+    for (let i = 1; i <= 5; i++) {
+      const doctor = await createDoctorUser(`doc-cap-total-${i}@test.com`, "Pass123456");
+      await createAppointmentRow(
+        doctor.id,
+        patient.id,
+        "CONFIRMED",
+        isoRange(i * HOUR, i * HOUR + 30 * 60 * 1000),
+      );
+    }
+
+    const newDoctor = await createDoctorUser("doc-cap-total-new@test.com", "Pass123456");
+    // 5-minute buffer before the requested slot: the availability window and
+    // the booking's minute-floored start time are computed at slightly
+    // different instants, so a window starting exactly at the booking's
+    // target offset can miss containment by a few seconds.
+    await createAvailabilityRow(newDoctor.id, isoRange(6 * HOUR - 5 * 60 * 1000, 7 * HOUR));
+
+    const patientAgent = await loginAgent(app, patient.email, patient.password);
+    const res = await patientAgent
+      .post("/appointments")
+      .send(bookingPayload(newDoctor.id, 6 * HOUR, 6 * HOUR + 30 * 60 * 1000));
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe(
+      "You already have the maximum number of active appointments across all doctors. Please wait for an existing request to be resolved before booking another.",
+    );
+  });
+
+  it("two concurrent bookings with different doctors can't jointly exceed the global cap", async () => {
+    const patient = await createPatientUser("pat-cap-total-race@test.com", "Pass123456");
+
+    // 4 active appointments across 4 different doctors — cap is 5, so
+    // exactly one of the two concurrent bookings below (each with its own
+    // new doctor) must succeed and the other must be rejected.
+    for (let i = 1; i <= 4; i++) {
+      const doctor = await createDoctorUser(`doc-cap-total-race-${i}@test.com`, "Pass123456");
+      await createAppointmentRow(
+        doctor.id,
+        patient.id,
+        "CONFIRMED",
+        isoRange(i * HOUR, i * HOUR + 30 * 60 * 1000),
+      );
+    }
+
+    const doctorA = await createDoctorUser("doc-cap-total-race-a@test.com", "Pass123456");
+    const doctorB = await createDoctorUser("doc-cap-total-race-b@test.com", "Pass123456");
+    // 5-minute buffer for the same reason as the single-booking cap test above.
+    await createAvailabilityRow(doctorA.id, isoRange(5 * HOUR - 5 * 60 * 1000, 6 * HOUR));
+    await createAvailabilityRow(doctorB.id, isoRange(6 * HOUR - 5 * 60 * 1000, 7 * HOUR));
+
+    const patientAgent = await loginAgent(app, patient.email, patient.password);
+
+    const [resA, resB] = await Promise.all([
+      patientAgent.post("/appointments").send(bookingPayload(doctorA.id, 5 * HOUR, 5 * HOUR + 30 * 60 * 1000)),
+      patientAgent.post("/appointments").send(bookingPayload(doctorB.id, 6 * HOUR, 6 * HOUR + 30 * 60 * 1000)),
+    ]);
+
+    const statuses = [resA.status, resB.status].sort();
+    expect(statuses).toEqual([201, 409]);
+
+    const [{ count }] = await getConnection().query(
+      `SELECT count(*)::int FROM appointments WHERE patient_id = $1 AND status IN ('PENDING','CONFIRMED') AND upper(appointment_time) > now()`,
+      [patient.id],
+    );
+    expect(count).toBe(5);
+  });
+
+  it("does not count REJECTED/CANCELLED/COMPLETED or already-elapsed appointments toward either cap", async () => {
+    const doctor = await createDoctorUser("doc-cap-exempt@test.com", "Pass123456");
+    await createAvailabilityRow(doctor.id, isoRange(HOUR, 10 * HOUR));
+    const patient = await createPatientUser("pat-cap-exempt@test.com", "Pass123456");
+
+    await createAppointmentRow(doctor.id, patient.id, "REJECTED", isoRange(HOUR, HOUR + 30 * 60 * 1000));
+    await createAppointmentRow(doctor.id, patient.id, "CANCELLED", isoRange(2 * HOUR, 2 * HOUR + 30 * 60 * 1000));
+    await createAppointmentRow(doctor.id, patient.id, "COMPLETED", isoRange(3 * HOUR, 3 * HOUR + 30 * 60 * 1000));
+    await createAppointmentRow(
+      doctor.id,
+      patient.id,
+      "CONFIRMED",
+      isoRange(-3 * HOUR, -2 * HOUR), // already elapsed
+    );
+
+    const patientAgent = await loginAgent(app, patient.email, patient.password);
+    const res = await patientAgent
+      .post("/appointments")
+      .send(bookingPayload(doctor.id, 4 * HOUR, 4 * HOUR + 30 * 60 * 1000));
+
+    expect(res.status).toBe(201);
+  });
+
+  it("auto-rejects stale PENDING requests before evaluating the cap, freeing the slot for a new booking", async () => {
+    const doctor = await createDoctorUser("doc-cap-stale@test.com", "Pass123456");
+    await createAvailabilityRow(doctor.id, isoRange(HOUR, 10 * HOUR));
+    const patient = await createPatientUser("pat-cap-stale@test.com", "Pass123456");
+
+    const staleCutoff = new Date(Date.now() - 49 * HOUR); // older than the 48h window
+    const staleId1 = await createAppointmentRow(
+      doctor.id,
+      patient.id,
+      "PENDING",
+      isoRange(HOUR, HOUR + 30 * 60 * 1000),
+      { createdAt: staleCutoff },
+    );
+    const staleId2 = await createAppointmentRow(
+      doctor.id,
+      patient.id,
+      "PENDING",
+      isoRange(2 * HOUR, 2 * HOUR + 30 * 60 * 1000),
+      { createdAt: staleCutoff },
+    );
+
+    const emails = spyOnAppointmentEmails();
+
+    const patientAgent = await loginAgent(app, patient.email, patient.password);
+    const res = await patientAgent
+      .post("/appointments")
+      .send(bookingPayload(doctor.id, 3 * HOUR, 3 * HOUR + 30 * 60 * 1000));
+
+    expect(res.status).toBe(201);
+
+    const rows = await getConnection().query(
+      `SELECT id, status FROM appointments WHERE id IN ($1, $2)`,
+      [staleId1, staleId2],
+    );
+    expect(rows.every((r: { status: string }) => r.status === "REJECTED")).toBe(true);
+
+    expect(emails.declined).toHaveBeenCalledTimes(2);
+    expect(emails.declined).toHaveBeenCalledWith(patient.email, staleId1, expect.any(Object));
+    expect(emails.declined).toHaveBeenCalledWith(patient.email, staleId2, expect.any(Object));
+  });
+
+  it("does not expire a PENDING request that's still within the response window", async () => {
+    const doctor = await createDoctorUser("doc-cap-fresh-pending@test.com", "Pass123456");
+    await createAvailabilityRow(doctor.id, isoRange(HOUR, 10 * HOUR));
+    const patient = await createPatientUser("pat-cap-fresh-pending@test.com", "Pass123456");
+
+    const freshId1 = await createAppointmentRow(doctor.id, patient.id, "PENDING", isoRange(HOUR, HOUR + 30 * 60 * 1000));
+    const freshId2 = await createAppointmentRow(
+      doctor.id,
+      patient.id,
+      "PENDING",
+      isoRange(2 * HOUR, 2 * HOUR + 30 * 60 * 1000),
+    );
+
+    const patientAgent = await loginAgent(app, patient.email, patient.password);
+    const res = await patientAgent
+      .post("/appointments")
+      .send(bookingPayload(doctor.id, 3 * HOUR, 3 * HOUR + 30 * 60 * 1000));
+
+    expect(res.status).toBe(409);
+
+    const rows = await getConnection().query(
+      `SELECT id, status FROM appointments WHERE id IN ($1, $2)`,
+      [freshId1, freshId2],
+    );
+    expect(rows.every((r: { status: string }) => r.status === "PENDING")).toBe(true);
   });
 });

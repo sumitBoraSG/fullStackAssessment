@@ -19,7 +19,7 @@ describe("POST /admin/invitations/bulk", () => {
     const admin = await createAdminUser();
     const adminAgent = await loginAgent(app, admin.email, admin.password);
 
-    const csv = "email,role\nbulk-a@test.com,PATIENT\nbulk-b@test.com,DOCTOR\n";
+    const csv = "email,role\nbulk-a@test.com,ADMIN\nbulk-b@test.com,DOCTOR\n";
 
     const res = await adminAgent
       .post("/admin/invitations/bulk")
@@ -32,6 +32,23 @@ describe("POST /admin/invitations/bulk", () => {
     expect(
       res.body.data.results.every((r: { status: string }) => r.status === "INVITED"),
     ).toBe(true);
+  });
+
+  it("marks a PATIENT row as FAILED: admins can no longer bulk-invite patients", async () => {
+    mockInvitationEmails();
+    const admin = await createAdminUser();
+    const adminAgent = await loginAgent(app, admin.email, admin.password);
+
+    const csv = "email,role\nbulk-patient@test.com,PATIENT\n";
+
+    const res = await adminAgent
+      .post("/admin/invitations/bulk")
+      .attach("file", csvBuffer(csv), { filename: "patient-row.csv", contentType: "text/csv" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.successful).toBe(0);
+    expect(res.body.data.failed).toBe(1);
+    expect(res.body.data.results[0].status).toBe("FAILED");
   });
 
   it("rejects a non-CSV file upload", async () => {
@@ -90,8 +107,8 @@ describe("POST /admin/invitations/bulk", () => {
 
     const csv =
       "email,role\n" +
-      "good-row@test.com,PATIENT\n" +
-      "not-an-email,PATIENT\n" +
+      "good-row@test.com,DOCTOR\n" +
+      "not-an-email,DOCTOR\n" +
       "bad-role@test.com,SUPERUSER\n";
 
     const res = await adminAgent
@@ -116,8 +133,8 @@ describe("POST /admin/invitations/bulk", () => {
 
     const csv =
       "email,role\n" +
-      "dup@test.com,PATIENT\n" +
-      "dup@test.com,PATIENT\n";
+      "dup@test.com,DOCTOR\n" +
+      "dup@test.com,DOCTOR\n";
 
     const res = await adminAgent
       .post("/admin/invitations/bulk")
@@ -134,10 +151,11 @@ describe("POST /admin/invitations/bulk", () => {
     const admin = await createAdminUser();
     const adminAgent = await loginAgent(app, admin.email, admin.password);
 
-    // Pre-existing user with this email.
+    // Pre-existing user with this email (existingUser lookup is by email
+    // only, independent of the role being invited).
     await createPatientUser("existing-cross-file@test.com", "Pass123456");
 
-    const csv = "email,role\nexisting-cross-file@test.com,PATIENT\n";
+    const csv = "email,role\nexisting-cross-file@test.com,DOCTOR\n";
 
     const res = await adminAgent
       .post("/admin/invitations/bulk")

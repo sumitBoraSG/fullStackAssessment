@@ -3,6 +3,7 @@ import { EntityManager, getManager } from "typeorm";
 import { UserInvitationRepo } from "@database/repository/user-invitation.repository";
 
 import { UserRole } from "@database/enum/userRole";
+import { InvitationSource } from "@database/enum/invitationSource";
 import { InvitationStatus } from "../../types/invitationStatus";
 
 export interface FindAllInvitationsOptions {
@@ -67,7 +68,8 @@ export class InvitationRepository {
     role: UserRole,
     hashedToken: string,
     expiresAt: Date,
-    createdBy: number,
+    createdBy: number | null,
+    source: InvitationSource = InvitationSource.ADMIN_INVITATION,
   ) {
 
     const invitation = this.invitationRepo.create({
@@ -79,6 +81,7 @@ export class InvitationRepository {
       revokedAt: null,
       createdBy,
       updatedBy: createdBy,
+      source,
     });
 
     return this.invitationRepo.save(invitation);
@@ -148,7 +151,7 @@ export class InvitationRepository {
 
   public async revokeInvitation(
     invitationId: number,
-    updatedBy: number,
+    updatedBy: number | null,
   ) {
     const revokedAt = new Date();
     await this.invitationRepo

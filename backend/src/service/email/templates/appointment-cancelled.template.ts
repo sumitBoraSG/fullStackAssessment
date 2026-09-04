@@ -20,6 +20,7 @@ export function buildAppointmentCancelledDoctorEmail(
       { label: "Date", value: details.date },
       { label: "Time", value: `${details.startTime} - ${details.endTime}` },
     ],
+    badge: { label: "Cancelled", tone: "cancelled" },
     cta: { label: "View Schedule", url: `${FRONTEND_URL}/dashboard` },
     closingNote: "Please log in to DocPulse to view your updated schedule.",
   });

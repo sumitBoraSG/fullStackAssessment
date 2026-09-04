@@ -105,6 +105,30 @@ export class AuthController {
     }
   };
 
+  // Always responds with the same generic success message regardless of
+  // whether the email exists, already has an account, or already has a
+  // pending invitation: AuthService.requestPatientSelfRegistration never
+  // throws/differentiates for those cases, so there is nothing here to
+  // branch on. This is what keeps the endpoint enumeration-safe.
+  public requestPatientSelfRegistration = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const { email } = req.body;
+
+      await this.authService.requestPatientSelfRegistration(email);
+
+      res.status(constant.HTTP_STATUS_OK).json({
+        success: true,
+        message: constant.SELF_REGISTRATION_LINK_SENT,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public getInvitationDetails = async (
     req: Request,
     res: Response,

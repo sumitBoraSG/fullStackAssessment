@@ -244,12 +244,13 @@ export const DoctorAppointmentsSection: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
           {/* Status Filter (3 cols) */}
           <div className="lg:col-span-3">
-            <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Status</label>
+            <label htmlFor="doctor-appt-status" className="block text-[11px] font-medium text-[#141413]/70 mb-1">Status</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
                 <Filter className="w-3.5 h-3.5" />
               </div>
               <select
+                id="doctor-appt-status"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value as AppointmentStatus | "ALL");
@@ -269,8 +270,9 @@ export const DoctorAppointmentsSection: React.FC = () => {
 
           {/* Date Mode Selector (2 cols) */}
           <div className="lg:col-span-2">
-            <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Date Filter</label>
+            <label htmlFor="doctor-appt-date-filter" className="block text-[11px] font-medium text-[#141413]/70 mb-1">Date Filter</label>
             <select
+              id="doctor-appt-date-filter"
               value={dateFilterType}
               onChange={(e) => {
                 setDateFilterType(e.target.value as "none" | "single" | "range");
@@ -288,8 +290,9 @@ export const DoctorAppointmentsSection: React.FC = () => {
           <div className="lg:col-span-4">
             {dateFilterType === "single" && (
               <div>
-                <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Select Date</label>
+                <label htmlFor="doctor-appt-single-date" className="block text-[11px] font-medium text-[#141413]/70 mb-1">Select Date</label>
                 <input
+                  id="doctor-appt-single-date"
                   type="date"
                   value={singleDate}
                   onChange={(e) => {
@@ -304,8 +307,9 @@ export const DoctorAppointmentsSection: React.FC = () => {
             {dateFilterType === "range" && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">From</label>
+                  <label htmlFor="doctor-appt-date-from" className="block text-[11px] font-medium text-[#141413]/70 mb-1">From</label>
                   <input
+                    id="doctor-appt-date-from"
                     type="date"
                     value={dateFrom}
                     onChange={(e) => {
@@ -316,8 +320,9 @@ export const DoctorAppointmentsSection: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">To</label>
+                  <label htmlFor="doctor-appt-date-to" className="block text-[11px] font-medium text-[#141413]/70 mb-1">To</label>
                   <input
+                    id="doctor-appt-date-to"
                     type="date"
                     value={dateTo}
                     onChange={(e) => {
@@ -332,7 +337,7 @@ export const DoctorAppointmentsSection: React.FC = () => {
 
             {dateFilterType === "none" && (
               <div>
-                <label className="block text-[11px] font-medium text-[#141413]/40 mb-1">Date Filter Inactive</label>
+                <span className="block text-[11px] font-medium text-[#141413]/40 mb-1">Date Filter Inactive</span>
                 <div className="text-xs text-[#141413]/50 py-1.5">All dates included</div>
               </div>
             )}
@@ -341,11 +346,12 @@ export const DoctorAppointmentsSection: React.FC = () => {
           {/* Sort By & Order (3 cols) */}
           <div className="lg:col-span-3 grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[11px] font-medium text-[#141413]/70 mb-1 flex items-center gap-1">
+              <label htmlFor="doctor-appt-sort-by" className="block text-[11px] font-medium text-[#141413]/70 mb-1 flex items-center gap-1">
                 <ArrowUpDown className="w-3 h-3" />
                 <span>Sort By</span>
               </label>
               <select
+                id="doctor-appt-sort-by"
                 value={sortBy}
                 onChange={(e) => {
                   setSortBy(e.target.value as "appointmentTime" | "createdAt" | "updatedAt");
@@ -359,8 +365,9 @@ export const DoctorAppointmentsSection: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Order</label>
+              <label htmlFor="doctor-appt-order" className="block text-[11px] font-medium text-[#141413]/70 mb-1">Order</label>
               <select
+                id="doctor-appt-order"
                 value={order}
                 onChange={(e) => {
                   setOrder(e.target.value as "ASC" | "DESC");
@@ -409,7 +416,7 @@ export const DoctorAppointmentsSection: React.FC = () => {
             </div>
           ))}
         </div>
-      ) : appointments.length === 0 ? (
+      ) : !errorMsg && appointments.length === 0 ? (
         <EmptyState
           icon={CalendarCheck}
           color="stone"

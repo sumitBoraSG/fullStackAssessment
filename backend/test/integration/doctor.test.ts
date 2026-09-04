@@ -136,4 +136,51 @@ describe("Doctor profile: PATCH /doctor/profile", () => {
     const res = await agent.patch("/doctor/profile").send({ experienceYears: 10 });
     expect(res.status).toBe(403);
   });
+
+  it("accepts the lower boundary experienceYears (0)", async () => {
+    const doctor = await createDoctorUser("doctor-profile-exp-min@test.com", "Pass123456");
+    const agent = await loginAgent(app, doctor.email, doctor.password);
+
+    const res = await agent.patch("/doctor/profile").send({ experienceYears: 0 });
+    expect(res.status).toBe(200);
+    expect(res.body.data.experienceYears).toBe(0);
+  });
+
+  it("accepts the upper boundary experienceYears (80)", async () => {
+    const doctor = await createDoctorUser("doctor-profile-exp-max@test.com", "Pass123456");
+    const agent = await loginAgent(app, doctor.email, doctor.password);
+
+    const res = await agent.patch("/doctor/profile").send({ experienceYears: 80 });
+    expect(res.status).toBe(200);
+    expect(res.body.data.experienceYears).toBe(80);
+  });
+
+  it("rejects a negative experienceYears", async () => {
+    const doctor = await createDoctorUser("doctor-profile-exp-neg@test.com", "Pass123456");
+    const agent = await loginAgent(app, doctor.email, doctor.password);
+
+    const res = await agent.patch("/doctor/profile").send({ experienceYears: -1 });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an attempt to change specializationId through this endpoint — it is permanent once set at signup", async () => {
+    const doctor = await createDoctorUser(
+      "doctor-profile-spec-immutable@test.com",
+      "Pass123456",
+      SPECIALIZATION_IDS.CARDIOLOGY,
+    );
+    const agent = await loginAgent(app, doctor.email, doctor.password);
+
+    const res = await agent
+      .patch("/doctor/profile")
+      .send({ experienceYears: 12, specializationId: SPECIALIZATION_IDS.GENERAL_PRACTITIONER });
+
+    // specializationId isn't in updateDoctorProfileSchema at all, and Joi
+    // rejects unknown keys by default, so the whole request is a 400 —
+    // it never reaches the point of silently ignoring the field.
+    expect(res.status).toBe(400);
+
+    const followUp = await agent.get("/doctor/profile");
+    expect(followUp.body.data.specialization).toBe("Cardiology");
+  });
 });

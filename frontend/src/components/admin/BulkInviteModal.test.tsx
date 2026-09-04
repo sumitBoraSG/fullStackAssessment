@@ -13,7 +13,7 @@ function getFileInput(): HTMLInputElement {
   return document.querySelector("#bulk-csv-upload-input") as HTMLInputElement;
 }
 
-function makeCsvFile(name = "invites.csv", content = "email,role\na@test.com,PATIENT") {
+function makeCsvFile(name = "invites.csv", content = "email,role\na@test.com,DOCTOR") {
   return new File([content], name, { type: "text/csv" });
 }
 
@@ -65,7 +65,7 @@ describe("BulkInviteModal", () => {
             successful: 2,
             failed: 0,
             results: [
-              { email: "a@test.com", role: "PATIENT", status: "INVITED" },
+              { email: "a@test.com", role: "ADMIN", status: "INVITED" },
               { email: "b@test.com", role: "DOCTOR", status: "INVITED" },
             ],
           },
@@ -95,8 +95,8 @@ describe("BulkInviteModal", () => {
             successful: 1,
             failed: 1,
             results: [
-              { email: "a@test.com", role: "PATIENT", status: "INVITED" },
-              { email: "bad@test.com", role: "PATIENT", status: "FAILED", reason: "Duplicate invitation" },
+              { email: "a@test.com", role: "DOCTOR", status: "INVITED" },
+              { email: "bad@test.com", role: "DOCTOR", status: "FAILED", reason: "Duplicate invitation" },
             ],
           },
         }),
@@ -118,6 +118,39 @@ describe("BulkInviteModal", () => {
     expect(screen.queryByText("a@test.com")).not.toBeInTheDocument();
     expect(screen.getByText("bad@test.com")).toBeInTheDocument();
     expect(screen.getByText("Duplicate invitation")).toBeInTheDocument();
+  });
+
+  it("renders a PATIENT row as FAILED: admins can no longer bulk-invite patients", async () => {
+    server.use(
+      http.post(`${BASE}/admin/invitations/bulk`, () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            total: 1,
+            successful: 0,
+            failed: 1,
+            results: [
+              {
+                email: "patient-row@test.com",
+                role: "PATIENT",
+                status: "FAILED",
+                reason: '"role" must be one of [ADMIN, DOCTOR]',
+              },
+            ],
+          },
+        }),
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(<BulkInviteModal isOpen onClose={() => {}} onSuccess={() => {}} />);
+
+    await user.upload(getFileInput(), makeCsvFile("invites.csv", "email,role\npatient-row@test.com,PATIENT"));
+    await user.click(screen.getByRole("button", { name: /upload & invite/i }));
+
+    expect(await screen.findByText("All Invitations Failed")).toBeInTheDocument();
+    expect(screen.getByText("patient-row@test.com")).toBeInTheDocument();
+    expect(screen.getByText('"role" must be one of [ADMIN, DOCTOR]')).toBeInTheDocument();
   });
 
   it("surfaces a server error envelope (e.g. row-limit exceeded) without showing a results view", async () => {
@@ -145,7 +178,7 @@ describe("BulkInviteModal", () => {
       http.post(`${BASE}/admin/invitations/bulk`, () =>
         HttpResponse.json({
           success: true,
-          data: { total: 1, successful: 1, failed: 0, results: [{ email: "a@test.com", role: "PATIENT", status: "INVITED" }] },
+          data: { total: 1, successful: 1, failed: 0, results: [{ email: "a@test.com", role: "DOCTOR", status: "INVITED" }] },
         }),
       ),
     );
@@ -170,7 +203,7 @@ describe("BulkInviteModal", () => {
       http.post(`${BASE}/admin/invitations/bulk`, () =>
         HttpResponse.json({
           success: true,
-          data: { total: 1, successful: 0, failed: 1, results: [{ email: "bad@test.com", role: "PATIENT", status: "FAILED", reason: "Invalid email" }] },
+          data: { total: 1, successful: 0, failed: 1, results: [{ email: "bad@test.com", role: "DOCTOR", status: "FAILED", reason: "Invalid email" }] },
         }),
       ),
     );
@@ -193,7 +226,7 @@ describe("BulkInviteModal", () => {
       http.post(`${BASE}/admin/invitations/bulk`, () =>
         HttpResponse.json({
           success: true,
-          data: { total: 1, successful: 1, failed: 0, results: [{ email: "a@test.com", role: "PATIENT", status: "INVITED" }] },
+          data: { total: 1, successful: 1, failed: 0, results: [{ email: "a@test.com", role: "DOCTOR", status: "INVITED" }] },
         }),
       ),
     );

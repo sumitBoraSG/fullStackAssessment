@@ -50,4 +50,22 @@ export class RateLimitMiddleware {
       message: constant.RATE_LIMIT_INVITATION,
     },
   });
+
+  // Stricter than `auth`: this backs the platform's first fully public,
+  // unauthenticated write endpoint (patient self-registration requests),
+  // so it needs a tighter ceiling than routes that already require a
+  // credential or a possessed token.
+  public patientSelfRegistration = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: skipInTestEnv,
+
+    message: {
+      success: false,
+      message: constant.RATE_LIMIT_PATIENT_SELF_REGISTRATION,
+    },
+  });
 }

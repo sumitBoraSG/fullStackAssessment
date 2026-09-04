@@ -97,4 +97,13 @@ describe("LoginPage", () => {
     expect(await screen.findByText("Authenticating...")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("Authenticating...")).not.toBeInTheDocument());
   });
+
+  it("navigates to /register when the new-patient link is clicked", async () => {
+    const user = userEvent.setup();
+    renderLoginWithToast();
+
+    await user.click(screen.getByRole("button", { name: /new patient\? create an account/i }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/register"));
+  });
 });

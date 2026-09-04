@@ -1,18 +1,23 @@
 import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, LockKeyhole } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useRouter } from "../context/RouterContext";
 import { Card } from "../components/ui/Card";
 import { FormField } from "../components/ui/FormField";
 import { TextInput } from "../components/ui/TextInput";
 import { Button } from "../components/ui/Button";
+import { Alert } from "../components/ui/Alert";
+import { AuthLayout } from "../components/auth/AuthLayout";
 
 export const LoginPage: React.FC = () => {
   const { login, isLoading } = useAuth();
+  const { navigate } = useRouter();
 
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [generalError, setGeneralError] = useState<string | undefined>(undefined);
 
   const validate = (): boolean => {
     const errs: { email?: string; password?: string } = {};
@@ -34,14 +39,18 @@ export const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setGeneralError(undefined);
     if (!validate()) return;
-    await login(email.trim(), password);
+
+    const res = await login(email.trim(), password);
+    if (!res.success) {
+      setGeneralError(res.message || "Invalid credentials. Please try again.");
+    }
   };
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-md">
-        <Card variant="auth" className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-7 sm:p-9 shadow-xs text-[#141413]">
+    <AuthLayout>
+      <Card variant="auth" className="bg-[#E3DBCC] border border-[#D8D0BF] rounded-2xl p-7 sm:p-9 shadow-xs text-[#141413]">
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-11 h-11 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] mb-4 text-[#141413] shadow-xs">
@@ -54,6 +63,12 @@ export const LoginPage: React.FC = () => {
               Sign in to manage appointments, patients, and healthcare consultations.
             </p>
           </div>
+
+          {generalError && (
+            <div className="mb-4">
+              <Alert variant="error">{generalError}</Alert>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -69,6 +84,7 @@ export const LoginPage: React.FC = () => {
                   onChange={(e) => {
                     setEmail(e.target.value);
                     if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                    if (generalError) setGeneralError(undefined);
                   }}
                   placeholder="name@example.com"
                   className="pl-9 pr-3 py-2"
@@ -90,6 +106,7 @@ export const LoginPage: React.FC = () => {
                   onChange={(e) => {
                     setPassword(e.target.value);
                     if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                    if (generalError) setGeneralError(undefined);
                   }}
                   placeholder="••••••••"
                   className="pl-9 pr-10 py-2"
@@ -118,8 +135,18 @@ export const LoginPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </Button>
           </form>
-        </Card>
-      </div>
-    </div>
+
+          {/* New patient self-registration */}
+          <div className="mt-5 pt-4 border-t border-[#D8D0BF] text-center">
+            <button
+              type="button"
+              onClick={() => navigate("/register")}
+              className="text-xs text-[#141413]/70 hover:text-[#141413] hover:underline font-medium transition-colors cursor-pointer"
+            >
+              New patient? Create an account &rarr;
+            </button>
+          </div>
+      </Card>
+    </AuthLayout>
   );
 };

@@ -70,6 +70,8 @@ export class AppointmentService {
     private static readonly DEFAULT_PAGE = 1;
     private static readonly DEFAULT_LIMIT = 10;
     private static readonly MAX_LIMIT = 100;
+    private static readonly STALE_PENDING_WINDOW_MS =
+        constant.STALE_PENDING_APPOINTMENT_HOURS * 60 * 60 * 1000;
 
     private emailService = new EmailService();
 
@@ -99,6 +101,8 @@ export class AppointmentService {
             order?: "ASC" | "DESC";
         },
     ) {
+        await this.expireStalePendingForPatient(patientId);
+
         const options = this.buildAppointmentQueryOptions(filters, {
             doctorId: filters.doctorId,
         });
@@ -154,6 +158,8 @@ export class AppointmentService {
             order?: "ASC" | "DESC";
         },
     ) {
+        await this.expireStalePendingForDoctor(doctorId);
+
         const options = this.buildAppointmentQueryOptions(filters, {
             patientId: filters.patientId,
         });
@@ -264,6 +270,11 @@ export class AppointmentService {
             );
         }
 
+        // Clear out any of this patient's own stale requests before
+        // evaluating the active-appointment caps below, so an unanswered
+        // request from days ago doesn't silently block a new booking.
+        await this.expireStalePendingForPatient(patientId);
+
         // Build appointment time range
         const appointmentTime = buildISTRangeLiteral(date, startTime, endTime);
 
@@ -292,13 +303,83 @@ export class AppointmentService {
         }
 
         try {
-            const appointment =
-                await this.appointmentRepository.createAppointment({
-                    patientId,
-                    doctorId,
-                    appointmentTime,
-                    status: AppointmentStatus.PENDING,
-                });
+            const appointment = await getManager().transaction(
+                async (manager) => {
+                    // Serializes all appointment-creation attempts by this
+                    // patient so two concurrent bookings can't jointly
+                    // exceed either cap below (a plain count-then-insert
+                    // has a TOCTOU race at READ COMMITTED).
+                    await this.appointmentRepository.acquirePatientBookingLock(
+                        patientId,
+                        manager,
+                    );
+
+                    const now = new Date();
+
+                    const doctorActiveCount =
+                        await this.appointmentRepository.countActiveAppointmentsForPatientAndDoctor(
+                            patientId,
+                            doctorId,
+                            now,
+                            manager,
+                        );
+
+                    if (
+                        doctorActiveCount >=
+                        constant.MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR
+                    ) {
+                        logger.error(
+                            "Create appointment failed: per-doctor active appointment limit reached",
+                            {
+                                data: {
+                                    patientId,
+                                    doctorId,
+                                    doctorActiveCount,
+                                },
+                            },
+                        );
+                        throw new createError.Conflict(
+                            constant.MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR_EXCEEDED,
+                        );
+                    }
+
+                    const totalActiveCount =
+                        await this.appointmentRepository.countActiveAppointmentsForPatient(
+                            patientId,
+                            now,
+                            manager,
+                        );
+
+                    if (
+                        totalActiveCount >=
+                        constant.MAX_ACTIVE_APPOINTMENTS_TOTAL
+                    ) {
+                        logger.error(
+                            "Create appointment failed: total active appointment limit reached",
+                            {
+                                data: {
+                                    patientId,
+                                    doctorId,
+                                    totalActiveCount,
+                                },
+                            },
+                        );
+                        throw new createError.Conflict(
+                            constant.MAX_ACTIVE_APPOINTMENTS_TOTAL_EXCEEDED,
+                        );
+                    }
+
+                    return this.appointmentRepository.createAppointment(
+                        {
+                            patientId,
+                            doctorId,
+                            appointmentTime,
+                            status: AppointmentStatus.PENDING,
+                        },
+                        manager,
+                    );
+                },
+            );
 
             logger.info("Appointment created successfully", {
                 data: {
@@ -751,6 +832,64 @@ export class AppointmentService {
                 email: appointment.patient?.user?.email || "",
             },
         };
+    }
+
+    // Auto-rejects PENDING requests a doctor never responded to within
+    // STALE_PENDING_APPOINTMENT_HOURS, so an unanswered request stops
+    // silently occupying the patient's active-appointment caps and stops
+    // hiding that slot from other patients via the availability query.
+    private async expireStalePendingForPatient(patientId: number): Promise<void> {
+        const cutoff = new Date(Date.now() - AppointmentService.STALE_PENDING_WINDOW_MS);
+        const expiredIds =
+            await this.appointmentRepository.expireStalePendingAppointmentsForPatient(
+                patientId,
+                cutoff,
+            );
+        await this.notifyExpiredAppointments(expiredIds);
+    }
+
+    private async expireStalePendingForDoctor(doctorId: number): Promise<void> {
+        const cutoff = new Date(Date.now() - AppointmentService.STALE_PENDING_WINDOW_MS);
+        const expiredIds =
+            await this.appointmentRepository.expireStalePendingAppointmentsForDoctor(
+                doctorId,
+                cutoff,
+            );
+        await this.notifyExpiredAppointments(expiredIds);
+    }
+
+    // Reuses the existing PENDING -> REJECTED "declined" email/notification
+    // path (notifyAppointmentStatusTransition already wraps each send in
+    // its own try/catch-and-log, so one failing email never blocks the
+    // others or the expiry itself).
+    private async notifyExpiredAppointments(expiredIds: number[]): Promise<void> {
+        if (expiredIds.length === 0) {
+            return;
+        }
+
+        const expired =
+            await this.appointmentRepository.findAppointmentsWithPatientByIds(
+                expiredIds,
+            );
+
+        await Promise.all(
+            expired.map((appointment) => {
+                logger.info("Appointment auto-rejected: no response within stale-pending window", {
+                    data: {
+                        appointmentId: appointment.id,
+                        patientId: appointment.patientId,
+                        doctorId: appointment.doctorId,
+                    },
+                });
+
+                return this.notifyAppointmentStatusTransition(
+                    AppointmentStatus.PENDING,
+                    AppointmentStatus.REJECTED,
+                    appointment,
+                    appointment.doctorId,
+                );
+            }),
+        );
     }
 
     // ---------------------------------------------------------------------

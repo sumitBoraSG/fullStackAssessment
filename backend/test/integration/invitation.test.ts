@@ -10,6 +10,7 @@ import {
   SPECIALIZATION_IDS,
 } from "../util/factories";
 import { UserRole } from "@database/enum/userRole";
+import { InvitationSource } from "@database/enum/invitationSource";
 
 setupIntegrationTest();
 
@@ -62,14 +63,14 @@ describe("Invitation -> signup flow", () => {
   });
 
   it("patient invite -> signup persists patient profile fields", async () => {
-    const { getLastToken } = mockInvitationEmails();
+    // Admins can no longer invite PATIENT via POST /admin/invite (that path
+    // is now self-service only), but legacy/admin-issued PATIENT rows must
+    // still complete signup correctly, so this seeds one directly.
     const admin = await createAdminUser();
-    const adminAgent = await loginAgent(app, admin.email, admin.password);
-
-    await adminAgent
-      .post("/admin/invite")
-      .send({ email: "patient1@test.com", role: "PATIENT" });
-    const token = getLastToken();
+    const { token, hashedToken } = rawTokenAndHash();
+    await createInvitationRow("patient1@test.com", UserRole.PATIENT, hashedToken, admin.id, {
+      source: InvitationSource.ADMIN_INVITATION,
+    });
 
     const acceptRes = await request(app).post("/auth/accept-invitation").send({
       token,
@@ -125,14 +126,10 @@ describe("Invitation -> signup flow", () => {
   });
 
   it("rejects signup missing required role-specific fields", async () => {
-    const { getLastToken } = mockInvitationEmails();
-    const admin = await createAdminUser();
-    const adminAgent = await loginAgent(app, admin.email, admin.password);
-
-    await adminAgent
-      .post("/admin/invite")
-      .send({ email: "patient2@test.com", role: "PATIENT" });
-    const token = getLastToken();
+    const { token, hashedToken } = rawTokenAndHash();
+    await createInvitationRow("patient2@test.com", UserRole.PATIENT, hashedToken, null, {
+      source: InvitationSource.PATIENT_SELF_REGISTRATION,
+    });
 
     const res = await request(app).post("/auth/accept-invitation").send({
       token,
@@ -146,14 +143,10 @@ describe("Invitation -> signup flow", () => {
   });
 
   it("ignores a client-supplied role and always uses the invitation's role", async () => {
-    const { getLastToken } = mockInvitationEmails();
-    const admin = await createAdminUser();
-    const adminAgent = await loginAgent(app, admin.email, admin.password);
-
-    await adminAgent
-      .post("/admin/invite")
-      .send({ email: "patient3@test.com", role: "PATIENT" });
-    const token = getLastToken();
+    const { token, hashedToken } = rawTokenAndHash();
+    await createInvitationRow("patient3@test.com", UserRole.PATIENT, hashedToken, null, {
+      source: InvitationSource.PATIENT_SELF_REGISTRATION,
+    });
 
     // Attempt to smuggle a role override into the request body.
     const tamperRes = await request(app)
@@ -237,14 +230,10 @@ describe("Invitation -> signup flow", () => {
   });
 
   it("only lets one of two concurrent accept-invitation calls succeed", async () => {
-    const { getLastToken } = mockInvitationEmails();
-    const admin = await createAdminUser();
-    const adminAgent = await loginAgent(app, admin.email, admin.password);
-
-    await adminAgent
-      .post("/admin/invite")
-      .send({ email: "concurrent@test.com", role: "PATIENT" });
-    const token = getLastToken();
+    const { token, hashedToken } = rawTokenAndHash();
+    await createInvitationRow("concurrent@test.com", UserRole.PATIENT, hashedToken, null, {
+      source: InvitationSource.PATIENT_SELF_REGISTRATION,
+    });
 
     const payload = {
       token,
@@ -342,11 +331,11 @@ describe("Accept invitation: invalid invitation states", () => {
 
 describe("Accept invitation: patient profile validation", () => {
   async function issuePatientInvitation(email: string): Promise<string> {
-    const { getLastToken } = mockInvitationEmails();
-    const admin = await createAdminUser(`admin-${email}`);
-    const adminAgent = await loginAgent(app, admin.email, admin.password);
-    await adminAgent.post("/admin/invite").send({ email, role: "PATIENT" });
-    return getLastToken();
+    const { token, hashedToken } = rawTokenAndHash();
+    await createInvitationRow(email, UserRole.PATIENT, hashedToken, null, {
+      source: InvitationSource.PATIENT_SELF_REGISTRATION,
+    });
+    return token;
   }
 
   it("rejects a future date of birth", async () => {

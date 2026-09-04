@@ -66,6 +66,10 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
       const res = await getSpecializationsApi();
       if (res.success && res.data) {
         setSpecializations(res.data);
+      } else {
+        setErrorMsg(
+          res.message || "Failed to load specializations. The specialization filter may be incomplete.",
+        );
       }
     }
     loadSpecs();
@@ -159,11 +163,13 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search doctors by name..."
+              aria-label="Search doctors by name"
               className="w-full pl-9 pr-8 py-2 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs sm:text-sm text-[#141413] placeholder-[#141413]/40 focus:outline-none focus:border-[#141413] focus:ring-1 focus:ring-[#141413] transition-all font-normal"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
                 className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#141413]/40 hover:text-[#141413] cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
@@ -179,6 +185,7 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
             <select
               value={selectedSpecialization}
               onChange={(e) => setSelectedSpecialization(e.target.value)}
+              aria-label="Filter by specialization"
               className="w-full pl-9 pr-7 py-2 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs sm:text-sm text-[#141413] focus:outline-none focus:border-[#141413] focus:ring-1 focus:ring-[#141413] transition-all font-normal appearance-none cursor-pointer"
             >
               <option value="">All Specializations</option>
@@ -199,6 +206,7 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
+              aria-label="Filter by availability date"
               className="w-full pl-9 pr-2.5 py-2 rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-xs sm:text-sm text-[#141413] focus:outline-none focus:border-[#141413] focus:ring-1 focus:ring-[#141413] transition-all font-normal"
             />
           </div>
@@ -253,7 +261,7 @@ export const PatientDoctorDiscovery: React.FC<PatientDoctorDiscoveryProps> = ({
             </div>
           ))}
         </div>
-      ) : doctors.length === 0 ? (
+      ) : !errorMsg && doctors.length === 0 ? (
         <EmptyState
           icon={Stethoscope}
           color="stone"

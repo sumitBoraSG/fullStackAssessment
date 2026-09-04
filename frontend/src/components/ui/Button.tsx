@@ -12,7 +12,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const baseClasses =
-  "inline-flex items-center justify-center gap-2 rounded-lg text-xs sm:text-sm font-medium tracking-tight transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer px-4 py-2.5 select-none";
+  "group inline-flex items-center justify-center gap-2 rounded-lg text-xs sm:text-sm font-medium tracking-tight transition-all duration-[var(--motion-duration-fast)] ease-[var(--motion-ease)] hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 cursor-pointer px-4 py-2.5 select-none";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
