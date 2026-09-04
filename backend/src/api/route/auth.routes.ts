@@ -3,6 +3,7 @@ import { AuthController } from "@api/controller/auth.controller";
 import { loginSchema } from "@api/validator/auth.validator";
 import { HttpRequestValidator } from "@middleware/http-request-validator";
 import { acceptInvitationSchema } from "@api/validator/acceptInvitation.validation";
+import { requestPatientSelfRegistrationSchema } from "@api/validator/patientSelfRegister.validation";
 import { RateLimitMiddleware } from "@middleware/rateLimiter.middleware";
 
 class AuthRoute {
@@ -35,6 +36,21 @@ class AuthRoute {
         acceptInvitationSchema,
       ),
       this.authController.acceptInvitation,
+    );
+
+    // Public, unauthenticated: a prospective patient requests their own
+    // registration link. Always responds with the same generic message
+    // (see AuthController.requestPatientSelfRegistration) and sits behind a
+    // stricter, dedicated rate limiter since it requires no prior
+    // credential or possessed token.
+    this.router.post(
+      "/patient/self-register",
+      this.rateLimitMiddleware.patientSelfRegistration,
+      this.requestValidator.validate(
+        "body",
+        requestPatientSelfRegistrationSchema,
+      ),
+      this.authController.requestPatientSelfRegistration,
     );
 
     // Public, read-only invitation preview — lets the signup page learn the

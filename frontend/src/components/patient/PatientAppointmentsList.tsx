@@ -250,12 +250,13 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
           {/* Status Filter (3 cols) */}
           <div className="lg:col-span-3">
-            <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Status</label>
+            <label htmlFor="patient-appt-status" className="block text-[11px] font-medium text-[#141413]/70 mb-1">Status</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#141413]/40">
                 <Filter className="w-3.5 h-3.5" />
               </div>
               <select
+                id="patient-appt-status"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value as AppointmentStatus | "ALL");
@@ -275,8 +276,9 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
 
           {/* Date Mode Selector (2 cols) */}
           <div className="lg:col-span-2">
-            <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Date Filter</label>
+            <label htmlFor="patient-appt-date-filter" className="block text-[11px] font-medium text-[#141413]/70 mb-1">Date Filter</label>
             <select
+              id="patient-appt-date-filter"
               value={dateFilterType}
               onChange={(e) => {
                 setDateFilterType(e.target.value as "none" | "single" | "range");
@@ -294,8 +296,9 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
           <div className="lg:col-span-4">
             {dateFilterType === "single" && (
               <div>
-                <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Select Date</label>
+                <label htmlFor="patient-appt-single-date" className="block text-[11px] font-medium text-[#141413]/70 mb-1">Select Date</label>
                 <input
+                  id="patient-appt-single-date"
                   type="date"
                   value={singleDate}
                   onChange={(e) => {
@@ -310,8 +313,9 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
             {dateFilterType === "range" && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">From</label>
+                  <label htmlFor="patient-appt-date-from" className="block text-[11px] font-medium text-[#141413]/70 mb-1">From</label>
                   <input
+                    id="patient-appt-date-from"
                     type="date"
                     value={dateFrom}
                     onChange={(e) => {
@@ -322,8 +326,9 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">To</label>
+                  <label htmlFor="patient-appt-date-to" className="block text-[11px] font-medium text-[#141413]/70 mb-1">To</label>
                   <input
+                    id="patient-appt-date-to"
                     type="date"
                     value={dateTo}
                     onChange={(e) => {
@@ -338,7 +343,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
 
             {dateFilterType === "none" && (
               <div>
-                <label className="block text-[11px] font-medium text-[#141413]/40 mb-1">Date Filter Inactive</label>
+                <span className="block text-[11px] font-medium text-[#141413]/40 mb-1">Date Filter Inactive</span>
                 <div className="text-xs text-[#141413]/50 py-1.5">All dates included</div>
               </div>
             )}
@@ -347,11 +352,12 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
           {/* Sort By & Order (3 cols) */}
           <div className="lg:col-span-3 grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[11px] font-medium text-[#141413]/70 mb-1 flex items-center gap-1">
+              <label htmlFor="patient-appt-sort-by" className="block text-[11px] font-medium text-[#141413]/70 mb-1 flex items-center gap-1">
                 <ArrowUpDown className="w-3 h-3" />
                 <span>Sort By</span>
               </label>
               <select
+                id="patient-appt-sort-by"
                 value={sortBy}
                 onChange={(e) => {
                   setSortBy(e.target.value as "appointmentTime" | "createdAt" | "updatedAt");
@@ -365,8 +371,9 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Order</label>
+              <label htmlFor="patient-appt-order" className="block text-[11px] font-medium text-[#141413]/70 mb-1">Order</label>
               <select
+                id="patient-appt-order"
                 value={order}
                 onChange={(e) => {
                   setOrder(e.target.value as "ASC" | "DESC");
@@ -415,7 +422,7 @@ export const PatientAppointmentsList: React.FC<PatientAppointmentsListProps> = (
             </div>
           ))}
         </div>
-      ) : appointments.length === 0 ? (
+      ) : !errorMsg && appointments.length === 0 ? (
         <EmptyState
           icon={CalendarCheck}
           color="stone"

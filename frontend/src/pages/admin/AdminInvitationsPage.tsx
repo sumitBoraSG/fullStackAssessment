@@ -458,13 +458,10 @@ export const AdminInvitationsPage: React.FC = () => {
             }
             disabled={isLoading}
             isLoading={isRefreshing}
+            loadingText="Refreshing..."
             title="Refresh table"
           >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${
-                isRefreshing ? "animate-spin text-[#141413]" : "text-[#141413]/60"
-              }`}
-            />
+            <RefreshCw className="w-3.5 h-3.5 text-[#141413]/60" />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
 
@@ -497,6 +494,7 @@ export const AdminInvitationsPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by recipient email..."
+              aria-label="Search invitations by recipient email"
               className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg bg-[#FAF8F5] border border-[#D8D0BF] text-[#141413] placeholder-[#141413]/40 focus:outline-none focus:border-[#141413] shadow-2xs transition-all"
             />
             {searchQuery && (
@@ -507,6 +505,7 @@ export const AdminInvitationsPage: React.FC = () => {
                 }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#141413]/40 hover:text-[#141413] cursor-pointer"
                 title="Clear search"
+                aria-label="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -521,6 +520,7 @@ export const AdminInvitationsPage: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter by status"
                 className="text-xs bg-[#FAF8F5] border border-[#D8D0BF] rounded-lg px-2.5 py-1.5 text-[#141413] font-medium focus:outline-none focus:border-[#141413] shadow-2xs cursor-pointer"
               >
                 <option value="ALL">All Statuses</option>
@@ -536,6 +536,7 @@ export const AdminInvitationsPage: React.FC = () => {
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
+                aria-label="Filter by role"
                 className="text-xs bg-[#FAF8F5] border border-[#D8D0BF] rounded-lg px-2.5 py-1.5 text-[#141413] font-medium focus:outline-none focus:border-[#141413] shadow-2xs cursor-pointer"
               >
                 <option value="ALL">All Roles</option>
@@ -551,6 +552,7 @@ export const AdminInvitationsPage: React.FC = () => {
               <select
                 value={pagination.limit}
                 onChange={(e) => handleLimitChange(Number(e.target.value))}
+                aria-label="Rows per page"
                 className="text-xs bg-[#FAF8F5] border border-[#D8D0BF] rounded-lg px-2 py-1.5 text-[#141413] font-medium focus:outline-none focus:border-[#141413] shadow-2xs cursor-pointer"
               >
                 <option value={10}>10</option>
@@ -652,6 +654,7 @@ export const AdminInvitationsPage: React.FC = () => {
                                 onClick={() => handleCopyEmail(invitation.email, invitation.id)}
                                 className="p-1 rounded-md text-[#141413]/40 hover:text-[#141413] hover:bg-[#FAF8F5] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                 title="Copy email address"
+                                aria-label={`Copy email address ${invitation.email}`}
                               >
                                 {isCopied ? (
                                   <Check className="w-3.5 h-3.5 text-[#2B5438]" />
@@ -768,6 +771,7 @@ export const AdminInvitationsPage: React.FC = () => {
                 disabled={pagination.page === 1}
                 className="p-1.5 rounded-lg border border-[#D8D0BF] bg-[#FAF8F5] hover:bg-[#E3DBCC] text-[#141413] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                 title="First Page"
+                aria-label="First page"
               >
                 <ChevronsLeft className="w-3.5 h-3.5" />
               </button>
@@ -777,6 +781,7 @@ export const AdminInvitationsPage: React.FC = () => {
                 disabled={pagination.page === 1}
                 className="p-1.5 rounded-lg border border-[#D8D0BF] bg-[#FAF8F5] hover:bg-[#E3DBCC] text-[#141413] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                 title="Previous Page"
+                aria-label="Previous page"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
@@ -812,6 +817,7 @@ export const AdminInvitationsPage: React.FC = () => {
                 disabled={pagination.page >= pagination.totalPages}
                 className="p-1.5 rounded-lg border border-[#D8D0BF] bg-[#FAF8F5] hover:bg-[#E3DBCC] text-[#141413] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                 title="Next Page"
+                aria-label="Next page"
               >
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
@@ -821,6 +827,7 @@ export const AdminInvitationsPage: React.FC = () => {
                 disabled={pagination.page >= pagination.totalPages}
                 className="p-1.5 rounded-lg border border-[#D8D0BF] bg-[#FAF8F5] hover:bg-[#E3DBCC] text-[#141413] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                 title="Last Page"
+                aria-label="Last page"
               >
                 <ChevronsRight className="w-3.5 h-3.5" />
               </button>
@@ -864,10 +871,11 @@ export const AdminInvitationsPage: React.FC = () => {
         {/* Modal Form */}
         <form id="single-invite-form" onSubmit={handleSendInvite} className="space-y-4" noValidate>
           <div>
-            <label className="block text-xs font-semibold text-[#141413] mb-1">
+            <label htmlFor="invite-email" className="block text-xs font-semibold text-[#141413] mb-1">
               Email Address <span className="text-[#8E2A22]">*</span>
             </label>
             <input
+              id="invite-email"
               type="email"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
@@ -890,10 +898,9 @@ export const AdminInvitationsPage: React.FC = () => {
             <label className="block text-xs font-semibold text-[#141413] mb-1.5">
               Assign Role <span className="text-[#8E2A22]">*</span>
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { id: "DOCTOR" as UserRole, label: "Doctor", icon: Stethoscope },
-                { id: "PATIENT" as UserRole, label: "Patient", icon: User },
                 { id: "ADMIN" as UserRole, label: "Admin", icon: ShieldCheck },
               ].map((item) => {
                 const Icon = item.icon;

@@ -118,6 +118,58 @@ export async function getInvitationDetailsApi(
 }
 
 /**
+ * Ask the backend to email a self-registration link to a prospective
+ * patient. Always resolves with the same generic success message
+ * regardless of whether the email already has an account or a pending
+ * invitation. Callers must not infer anything from the response beyond
+ * "the request was accepted".
+ * POST /auth/patient/self-register
+ */
+export async function requestPatientRegistrationApi(
+  email: string
+): Promise<ApiResponse<void>> {
+  try {
+    const response = await apiFetch("/auth/patient/self-register", {
+      method: "POST",
+      skipAuthRefresh: true,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.success === false) {
+      const errorMessage =
+        data.message || data.error?.message || "Please enter a valid email address.";
+      return {
+        success: false,
+        message: errorMessage,
+        error: {
+          code: data.code || data.error?.code || "SELF_REGISTER_REQUEST_ERROR",
+          message: errorMessage,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || "Check your inbox for a verification link.",
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err.message || "Network error. Please check your connection.",
+      error: {
+        code: "NETWORK_ERROR",
+        message: err.message || "Failed to connect to the server.",
+      },
+    };
+  }
+}
+
+/**
  * Accept an invitation and complete user registration.
  * POST /auth/accept-invitation
  */

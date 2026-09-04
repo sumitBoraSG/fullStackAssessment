@@ -18,6 +18,7 @@ export function buildAppointmentRequestedPatientEmail(
       { label: "Time", value: `${details.startTime} - ${details.endTime}` },
       { label: "Status", value: "Pending" },
     ],
+    badge: { label: "Pending", tone: "pending" },
     cta: { label: "View Appointment", url: `${FRONTEND_URL}/dashboard` },
     closingNote: "Please log in to DocPulse to view your appointment details.",
   });
@@ -42,6 +43,7 @@ export function buildAppointmentRequestedDoctorEmail(
       { label: "Time", value: `${details.startTime} - ${details.endTime}` },
       { label: "Status", value: "Pending" },
     ],
+    badge: { label: "Pending", tone: "pending" },
     cta: { label: "Review Request", url: `${FRONTEND_URL}/dashboard` },
     closingNote:
       "Please log in to DocPulse to confirm or decline this request.",

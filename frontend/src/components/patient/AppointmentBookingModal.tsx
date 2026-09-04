@@ -100,6 +100,25 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
     return slots;
   }, [dateSlots]);
 
+  // Escape-to-close, matching the shared Modal primitive used elsewhere in
+  // the app - locked while a request is in flight.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isSubmitting, onClose]);
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isSubmitting && e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   const handleDateSelect = (dateStr: string) => {
     setSelectedDate(dateStr);
     setErrorMsg(null);
@@ -189,8 +208,17 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
   if (!isOpen || !doctorDetails) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#141413]/40 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-[#F0EEE6] border border-[#D8D0BF] rounded-2xl max-w-xl w-full p-6 sm:p-7 shadow-lg space-y-5 relative overflow-hidden animate-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col text-[#141413]">
+    <div
+      onClick={handleBackdropClick}
+      role="presentation"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#141413]/40 backdrop-blur-xs animate-in fade-in duration-150"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="booking-modal-title"
+        className="bg-[#F0EEE6] border border-[#D8D0BF] rounded-2xl max-w-xl w-full p-6 sm:p-7 shadow-lg space-y-5 relative overflow-hidden animate-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col text-[#141413]"
+      >
         {/* Modal Header */}
         <div className="flex items-start justify-between pb-4 border-b border-[#D8D0BF] shrink-0">
           <div className="flex items-center gap-3">
@@ -202,7 +230,7 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                 <CalendarCheck className="w-3 h-3 text-[#141413]" />
                 <span>Book Consultation</span>
               </div>
-              <h3 className="text-base font-semibold text-[#141413] tracking-tight m-0">
+              <h3 id="booking-modal-title" className="text-base font-semibold text-[#141413] tracking-tight m-0">
                 Dr. {doctorDetails.doctor.firstName} {doctorDetails.doctor.lastName}
               </h3>
               <p className="text-xs text-[#141413]/60 font-normal m-0">
@@ -214,6 +242,7 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
           <button
             onClick={onClose}
             disabled={isSubmitting}
+            aria-label="Close"
             className="p-1.5 rounded-lg text-[#141413]/50 hover:text-[#141413] hover:bg-[#E3DBCC] transition-colors cursor-pointer disabled:opacity-50"
           >
             <X className="w-4 h-4" />
@@ -324,8 +353,9 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                   </summary>
                   <div className="grid grid-cols-2 gap-2.5 mt-2 p-3 bg-[#E3DBCC] rounded-lg border border-[#D8D0BF]">
                     <div>
-                      <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">Start Time</label>
+                      <label htmlFor="booking-custom-start" className="block text-[11px] font-medium text-[#141413]/70 mb-1">Start Time</label>
                       <input
+                        id="booking-custom-start"
                         type="time"
                         value={startTime}
                         onChange={(e) => setStartTime(e.target.value)}
@@ -333,8 +363,9 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-medium text-[#141413]/70 mb-1">End Time</label>
+                      <label htmlFor="booking-custom-end" className="block text-[11px] font-medium text-[#141413]/70 mb-1">End Time</label>
                       <input
+                        id="booking-custom-end"
                         type="time"
                         value={endTime}
                         onChange={(e) => setEndTime(e.target.value)}

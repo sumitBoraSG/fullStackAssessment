@@ -1,4 +1,5 @@
 import {
+  EntityManager,
   EntityRepository,
   getManager,
   Repository,
@@ -57,6 +58,67 @@ export class AppointmentRepository extends Repository<Appointment> {
     return query.getMany();
   }
 
+  public async countActiveAppointmentsForPatientAndDoctor(
+    patientId: number,
+    doctorId: number,
+    now: Date,
+    manager: EntityManager = getManager(),
+  ): Promise<number> {
+    return manager
+      .getRepository(Appointment)
+      .createQueryBuilder("appointment")
+      .where("appointment.patientId = :patientId", { patientId })
+      .andWhere("appointment.doctorId = :doctorId", { doctorId })
+      .andWhere("appointment.status IN (:...statuses)", {
+        statuses: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED],
+      })
+      .andWhere("upper(appointment.appointment_time) > :now::timestamptz", {
+        now,
+      })
+      .getCount();
+  }
+
+  public async countActiveAppointmentsForPatient(
+    patientId: number,
+    now: Date,
+    manager: EntityManager = getManager(),
+  ): Promise<number> {
+    return manager
+      .getRepository(Appointment)
+      .createQueryBuilder("appointment")
+      .where("appointment.patientId = :patientId", { patientId })
+      .andWhere("appointment.status IN (:...statuses)", {
+        statuses: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED],
+      })
+      .andWhere("upper(appointment.appointment_time) > :now::timestamptz", {
+        now,
+      })
+      .getCount();
+  }
+
+  // Arbitrary fixed namespace for this feature's advisory-lock keyspace, so
+  // it never collides if some other feature later adopts advisory locks
+  // keyed by a different entity's raw integer id.
+  private static readonly BOOKING_LOCK_NAMESPACE = 837412;
+
+  /**
+   * Serializes all appointment-creation attempts by a given patient within
+   * the calling transaction, so concurrent bookings can't jointly exceed the
+   * per-doctor/total active-appointment caps (a plain COUNT-then-INSERT has
+   * a TOCTOU race at READ COMMITTED, and there's no existing row to take a
+   * SELECT ... FOR UPDATE lock on when the patient's count starts at zero).
+   * Released automatically when the transaction commits or rolls back.
+   */
+  public async acquirePatientBookingLock(
+    patientId: number,
+    manager: EntityManager,
+  ): Promise<void> {
+    await manager.query("SELECT pg_advisory_xact_lock($1, $2)", [
+      AppointmentRepository.BOOKING_LOCK_NAMESPACE,
+      patientId,
+    ]);
+  }
+
   public async findDoctorAvailabilityForAppointment(
     doctorId: number,
     appointmentTime: string,
@@ -76,12 +138,15 @@ export class AppointmentRepository extends Repository<Appointment> {
       .getOne();
   }
 
-  public async createAppointment(data: {
-    patientId: number;
-    doctorId: number;
-    appointmentTime: string;
-    status: AppointmentStatus;
-  }) {
+  public async createAppointment(
+    data: {
+      patientId: number;
+      doctorId: number;
+      appointmentTime: string;
+      status: AppointmentStatus;
+    },
+    manager: EntityManager = getManager(),
+  ) {
     const appointment = this.create({
       patientId: data.patientId,
       doctorId: data.doctorId,
@@ -89,7 +154,7 @@ export class AppointmentRepository extends Repository<Appointment> {
       status: data.status,
     });
 
-    return this.save(appointment);
+    return manager.save(appointment);
   }
 
   public async findPatientById(patientId: number) {
@@ -206,6 +271,18 @@ export class AppointmentRepository extends Repository<Appointment> {
       .getOne();
   }
 
+  public async findAppointmentsWithPatientByIds(ids: number[]) {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return this.createQueryBuilder("appointment")
+      .innerJoinAndSelect("appointment.patient", "patient")
+      .innerJoinAndSelect("patient.user", "patientUser")
+      .where("appointment.id IN (:...ids)", { ids })
+      .getMany();
+  }
+
   public async updateAppointmentStatusByDoctor(
     appointmentId: number,
     doctorId: number,
@@ -234,6 +311,48 @@ export class AppointmentRepository extends Repository<Appointment> {
       .andWhere("patient_id = :patientId", { patientId })
       .andWhere("status = :expectedStatus", { expectedStatus })
       .execute();
+  }
+
+  /**
+   * Auto-rejects PENDING requests older than `cutoff` for one patient. A
+   * single atomic UPDATE needs no lock: whichever concurrent sweep's
+   * statement reaches a given row first "claims" it (returns its id), and
+   * the other's `status = 'PENDING'` filter simply no longer matches it.
+   */
+  public async expireStalePendingAppointmentsForPatient(
+    patientId: number,
+    cutoff: Date,
+    manager: EntityManager = getManager(),
+  ): Promise<number[]> {
+    const result = await manager
+      .createQueryBuilder()
+      .update(Appointment)
+      .set({ status: AppointmentStatus.REJECTED })
+      .where("patient_id = :patientId", { patientId })
+      .andWhere("status = :pending", { pending: AppointmentStatus.PENDING })
+      .andWhere("created_at < :cutoff", { cutoff })
+      .returning(["id"])
+      .execute();
+
+    return result.raw.map((row: { id: number }) => row.id);
+  }
+
+  public async expireStalePendingAppointmentsForDoctor(
+    doctorId: number,
+    cutoff: Date,
+    manager: EntityManager = getManager(),
+  ): Promise<number[]> {
+    const result = await manager
+      .createQueryBuilder()
+      .update(Appointment)
+      .set({ status: AppointmentStatus.REJECTED })
+      .where("doctor_id = :doctorId", { doctorId })
+      .andWhere("status = :pending", { pending: AppointmentStatus.PENDING })
+      .andWhere("created_at < :cutoff", { cutoff })
+      .returning(["id"])
+      .execute();
+
+    return result.raw.map((row: { id: number }) => row.id);
   }
 
   private applyCommonFilters(

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -46,7 +46,7 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset modal state
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setFile(null);
     setIsDragging(false);
     setIsUploading(false);
@@ -57,14 +57,33 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  };
+  }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     const shouldTriggerSuccess = !!resultData && resultData.successful > 0;
     handleReset();
     onClose();
     if (shouldTriggerSuccess && onSuccess) {
       onSuccess();
+    }
+  }, [resultData, handleReset, onClose, onSuccess]);
+
+  // Escape-to-close, matching the shared Modal primitive used elsewhere in
+  // the app - locked while a request is in flight, same as `disableClose`.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isUploading) {
+        handleClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isUploading, handleClose]);
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isUploading && e.target === e.currentTarget) {
+      handleClose();
     }
   };
 
@@ -107,8 +126,7 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
     const csvContent =
       "email,role\r\n" +
       "user1@example.com,DOCTOR\r\n" +
-      "user2@example.com,PATIENT\r\n" +
-      "user3@example.com,ADMIN\r\n";
+      "user2@example.com,ADMIN\r\n";
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -208,8 +226,17 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#141413]/40 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
-      <div className="w-full max-w-2xl bg-[#F0EEE6] rounded-2xl border border-[#D8D0BF] shadow-xl overflow-hidden my-6 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] text-[#141413]">
+    <div
+      onClick={handleBackdropClick}
+      role="presentation"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#141413]/40 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="bulk-invite-title"
+        className="w-full max-w-2xl bg-[#F0EEE6] rounded-2xl border border-[#D8D0BF] shadow-xl overflow-hidden my-6 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] text-[#141413]"
+      >
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-[#D8D0BF] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -217,7 +244,7 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
               <FileSpreadsheet className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-[#141413] m-0">
+              <h3 id="bulk-invite-title" className="text-base font-semibold text-[#141413] m-0">
                 Bulk Invitations
               </h3>
               <p className="text-xs text-[#141413]/60 m-0">
@@ -230,6 +257,7 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
             disabled={isUploading}
             className="p-1.5 rounded-lg text-[#141413]/50 hover:text-[#141413] hover:bg-[#E3DBCC] transition-colors cursor-pointer disabled:opacity-40"
             title="Close modal"
+            aria-label="Close modal"
           >
             <X className="w-4 h-4" />
           </button>
@@ -268,17 +296,13 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
                     email,role
                   </div>
                   <div>user1@example.com,DOCTOR</div>
-                  <div>user2@example.com,PATIENT</div>
-                  <div>user3@example.com,ADMIN</div>
+                  <div>user2@example.com,ADMIN</div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px] text-[#141413]/60">
                   <span className="font-medium text-[#141413]">Supported Roles:</span>
                   <span className="px-1.5 py-0.2 rounded bg-[#FAF8F5] text-[#141413] border border-[#D8D0BF] font-mono text-[10px]">
                     DOCTOR
-                  </span>
-                  <span className="px-1.5 py-0.2 rounded bg-[#FAF8F5] text-[#141413] border border-[#D8D0BF] font-mono text-[10px]">
-                    PATIENT
                   </span>
                   <span className="px-1.5 py-0.2 rounded bg-[#FAF8F5] text-[#141413] border border-[#D8D0BF] font-mono text-[10px]">
                     ADMIN
@@ -299,6 +323,7 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
                   }}
                   className="hidden"
                   id="bulk-csv-upload-input"
+                  aria-label="Upload CSV file"
                 />
 
                 {!file ? (
@@ -307,7 +332,16 @@ export const BulkInviteModal: React.FC<BulkInviteModalProps> = ({
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`border border-dashed rounded-xl p-8 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2.5 ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Click to browse or drag and drop your CSV file. Only .csv files up to 5MB are supported."
+                    className={`border border-dashed rounded-xl p-8 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#141413]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F0EEE6] ${
                       isDragging
                         ? "border-[#141413] bg-[#E3DBCC]"
                         : "border-[#D8D0BF] hover:border-[#141413] bg-[#FAF8F5]"

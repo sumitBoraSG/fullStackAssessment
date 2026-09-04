@@ -18,9 +18,13 @@ const sizeClasses: Record<SpinnerSize, string> = {
 
 export const Spinner: React.FC<SpinnerProps> = ({ size = "md", label, className }) => {
   return (
-    <div className="flex flex-col items-center gap-3 text-[#141413]/70">
+    <div role="status" aria-live="polite" className="flex flex-col items-center gap-3 text-[#141413]/70">
       <Loader2 className={cn("animate-spin text-[#141413]", sizeClasses[size], className)} />
-      {label && <span className="text-xs font-medium text-[#141413]">{label}</span>}
+      {label ? (
+        <span className="text-xs font-medium text-[#141413]">{label}</span>
+      ) : (
+        <span className="sr-only">Loading</span>
+      )}
     </div>
   );
 };

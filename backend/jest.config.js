@@ -22,6 +22,7 @@ module.exports = {
         "^@config/(.*)$": "<rootDir>/src/config/$1",
         "^@core/(.*)$": "<rootDir>/src/core/$1",
         "^@database/(.*)$": "<rootDir>/src/database/$1",
+        "^@docs/(.*)$": "<rootDir>/src/docs/$1",
         "^@middleware/(.*)$": "<rootDir>/src/middleware/$1",
         "^@service/(.*)$": "<rootDir>/src/service/$1",
         "^@type/(.*)$": "<rootDir>/src/type/$1",

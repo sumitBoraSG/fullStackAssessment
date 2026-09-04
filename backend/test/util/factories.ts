@@ -5,6 +5,7 @@ import request from "supertest";
 import { Application } from "express";
 import { EmailService } from "@service/email/email.service";
 import { UserRole } from "@database/enum/userRole";
+import { InvitationSource } from "@database/enum/invitationSource";
 import { REFRESH_TOKEN_SECRET } from "@config/secret";
 
 export const SPECIALIZATION_IDS = {
@@ -91,7 +92,17 @@ export async function createAppointmentRow(
   patientId: number,
   status: string,
   rangeLiteral: string,
+  options: { createdAt?: Date } = {},
 ): Promise<number> {
+  if (options.createdAt) {
+    const [{ id }] = await getConnection().query(
+      `INSERT INTO appointments (patient_id, doctor_id, status, appointment_time, created_at)
+       VALUES ($1, $2, $3, $4::tstzrange, $5) RETURNING id`,
+      [patientId, doctorId, status, rangeLiteral, options.createdAt],
+    );
+    return id;
+  }
+
   const [{ id }] = await getConnection().query(
     `INSERT INTO appointments (patient_id, doctor_id, status, appointment_time)
      VALUES ($1, $2, $3, $4::tstzrange) RETURNING id`,
@@ -104,26 +115,34 @@ export async function createAppointmentRow(
  * Seeds an invitation row directly (bypassing the HTTP invite flow) so a
  * test can put it straight into EXPIRED/USED/REVOKED state — states that
  * are otherwise only reachable via a real 24h wait, a full accept flow, or
- * an admin revoke call. `createdBy`/`updatedBy` are NOT NULL FK columns to
- * `users`, so a real user id (e.g. an admin created via createAdminUser)
- * must be supplied. Defaults to a pending invitation expiring in 24h.
+ * an admin revoke call. `createdBy`/`updatedBy` are nullable FK columns to
+ * `users` (null for a patient-self-registration-sourced row); pass a real
+ * user id (e.g. an admin created via createAdminUser) for an
+ * admin-issued-style row. Defaults to a pending, admin-issued invitation
+ * expiring in 24h.
  */
 export async function createInvitationRow(
   email: string,
   role: UserRole,
   hashedToken: string,
-  createdBy: number,
-  options: { expiresAt?: Date; usedAt?: Date | null; revokedAt?: Date | null } = {},
+  createdBy: number | null,
+  options: {
+    expiresAt?: Date;
+    usedAt?: Date | null;
+    revokedAt?: Date | null;
+    source?: InvitationSource;
+  } = {},
 ): Promise<number> {
   const expiresAt = options.expiresAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000);
   const usedAt = options.usedAt ?? null;
   const revokedAt = options.revokedAt ?? null;
+  const source = options.source ?? InvitationSource.ADMIN_INVITATION;
 
   const [{ id }] = await getConnection().query(
     `INSERT INTO user_invitations
-       (email, role, hashed_token, expires_at, used_at, revoked_at, created_by, updated_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING id`,
-    [email.toLowerCase(), role, hashedToken, expiresAt, usedAt, revokedAt, createdBy],
+       (email, role, hashed_token, expires_at, used_at, revoked_at, created_by, updated_by, source)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8) RETURNING id`,
+    [email.toLowerCase(), role, hashedToken, expiresAt, usedAt, revokedAt, createdBy, source],
   );
   return id;
 }

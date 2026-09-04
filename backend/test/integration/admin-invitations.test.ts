@@ -10,6 +10,48 @@ import { UserRole } from "@database/enum/userRole";
 
 setupIntegrationTest();
 
+describe("POST /admin/invite: role restriction", () => {
+  it("rejects inviting a PATIENT: patients self-register instead", async () => {
+    const admin = await createAdminUser();
+    const adminAgent = await loginAgent(app, admin.email, admin.password);
+
+    const res = await adminAgent
+      .post("/admin/invite")
+      .send({ email: "should-not-be-invited@test.com", role: "PATIENT" });
+
+    expect(res.status).toBe(400);
+
+    const invitations = await adminAgent
+      .get("/admin/invitations")
+      .query({ search: "should-not-be-invited" });
+    expect(invitations.body.data).toHaveLength(0);
+  });
+
+  it("still allows inviting a DOCTOR", async () => {
+    mockInvitationEmails();
+    const admin = await createAdminUser();
+    const adminAgent = await loginAgent(app, admin.email, admin.password);
+
+    const res = await adminAgent
+      .post("/admin/invite")
+      .send({ email: "still-invitable-doctor@test.com", role: "DOCTOR" });
+
+    expect(res.status).toBe(201);
+  });
+
+  it("still allows inviting an ADMIN", async () => {
+    mockInvitationEmails();
+    const admin = await createAdminUser();
+    const adminAgent = await loginAgent(app, admin.email, admin.password);
+
+    const res = await adminAgent
+      .post("/admin/invite")
+      .send({ email: "still-invitable-admin@test.com", role: "ADMIN" });
+
+    expect(res.status).toBe(201);
+  });
+});
+
 describe("GET /admin/invitations", () => {
   it("lists invitations and rejects a non-admin", async () => {
     const admin = await createAdminUser();
@@ -152,7 +194,7 @@ describe("POST /admin/invitations/:id/revoke", () => {
 
     const inviteRes = await adminAgent
       .post("/admin/invite")
-      .send({ email: "to-revoke@test.com", role: "PATIENT" });
+      .send({ email: "to-revoke@test.com", role: "DOCTOR" });
     expect(inviteRes.status).toBe(201);
     getLastToken();
     const invitationId = inviteRes.body.data.id;

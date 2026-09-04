@@ -1,13 +1,17 @@
-// Shared rendering for every transactional email — keeps subject/branding/
-// styling consistent across invitation and appointment lifecycle emails
-// without copy-pasting the same HTML wrapper into each template.
+// Shared rendering for every transactional email — keeps branding/styling
+// consistent across invitation and appointment lifecycle emails without
+// copy-pasting the same HTML wrapper into each template. Composes the
+// design-system pieces in ../components/* into one document.
 
-const BRAND_NAME = "DocPulse";
+import { BRAND_NAME, COLOR, FONT_FAMILY, BadgeTone } from "../theme";
+import { escapeHtml } from "../utils";
+import { renderEmailButton } from "../components/button";
+import { renderEmailFooter } from "../components/footer";
+import { renderEmailHeader } from "../components/header";
+import { EmailBadge, EmailDetailRow, renderInfoCard } from "../components/infoCard";
+import { renderEmailShell } from "../components/shell";
 
-export interface EmailDetailRow {
-  label: string;
-  value: string;
-}
+export { EmailDetailRow, EmailBadge, BadgeTone };
 
 export interface TransactionalEmailOptions {
   heading: string;
@@ -16,81 +20,105 @@ export interface TransactionalEmailOptions {
   details?: EmailDetailRow[];
   cta?: { label: string; url: string };
   closingNote?: string;
+  // Additive, HTML-only fields — never read by the plain-text renderer, so
+  // they cannot change the wording asserted by existing email tests.
+  badge?: EmailBadge;
+  preheader?: string;
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+function buildTextBody(options: TransactionalEmailOptions): string {
+  const { greeting, paragraphs, details = [], cta, closingNote } = options;
 
-function renderDetailsHtml(details: EmailDetailRow[]): string {
-  if (!details.length) return "";
-
-  const rows = details
-    .map((row) => {
-      const label = `<td style="padding:4px 12px 4px 0;color:#555;">${escapeHtml(row.label)}</td>`;
-      const value = `<td style="padding:4px 0;font-weight:600;">${escapeHtml(row.value)}</td>`;
-      return `<tr>${label}${value}</tr>`;
-    })
-    .join("");
-
-  return `<table style="margin:16px 0;border-collapse:collapse;">${rows}</table>`;
-}
-
-function renderCtaHtml(cta?: { label: string; url: string }): string {
-  if (!cta) return "";
-
-  return `
-        <p>
-          <a
-            href="${cta.url}"
-            style="
-              display: inline-block;
-              padding: 10px 20px;
-              background-color: #000;
-              color: #fff;
-              text-decoration: none;
-              border-radius: 5px;
-            "
-          >
-            ${escapeHtml(cta.label)}
-          </a>
-        </p>`;
-}
-
-export function renderTransactionalEmail(
-  options: TransactionalEmailOptions,
-): { text: string; html: string } {
-  const { heading, greeting, paragraphs, details = [], cta, closingNote } = options;
-
-  const textLines = [
+  const lines = [
     greeting,
     "",
     ...paragraphs,
-    ...(details.length ? ["", ...details.map((d) => `${d.label}: ${d.value}`)] : []),
+    ...(details.length ? ["", ...details.map((row) => `${row.label}: ${row.value}`)] : []),
     ...(cta ? ["", `${cta.label}: ${cta.url}`] : []),
     ...(closingNote ? ["", closingNote] : []),
     "",
     `${BRAND_NAME} - Doctor Appointment & Healthcare Platform`,
   ];
 
-  const html = `
-        <h2>${escapeHtml(heading)}</h2>
+  return lines.join("\n");
+}
 
-        <p>${escapeHtml(greeting)}</p>
+interface ContentTextStyles {
+  heading: string;
+  greeting: string;
+  paragraph: string;
+  closing: string;
+}
 
-        ${paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join("\n")}
+function buildContentTextStyles(): ContentTextStyles {
+  const base = [`font-family:${FONT_FAMILY}`, "line-height:1.6"];
 
-        ${renderDetailsHtml(details)}
-        ${renderCtaHtml(cta)}
+  return {
+    heading: [
+      "margin:0 0 16px",
+      ...base,
+      "font-size:22px",
+      "font-weight:700",
+      "letter-spacing:-0.02em",
+      `color:${COLOR.textPrimary}`,
+      "word-break:break-word",
+    ].join(";"),
+    greeting: ["margin:0 0 16px", ...base, "font-size:15px", `color:${COLOR.textPrimary}`].join(";"),
+    paragraph: [
+      "margin:0 0 16px",
+      ...base,
+      "font-size:15px",
+      `color:${COLOR.textMuted}`,
+      "word-break:break-word",
+      "overflow-wrap:anywhere",
+    ].join(";"),
+    closing: ["margin:20px 0 0", ...base, "font-size:13px", `color:${COLOR.textMuted}`].join(";"),
+  };
+}
 
-        ${closingNote ? `<p>${escapeHtml(closingNote)}</p>` : ""}
+function buildButtonHtml(cta: TransactionalEmailOptions["cta"]): string {
+  if (!cta) {
+    return "";
+  }
 
-        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-        <p style="color:#888;font-size:12px;">${BRAND_NAME} &middot; Doctor Appointment &amp; Healthcare Platform</p>
-      `;
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td align="center" style="padding:4px 0 8px;">${renderEmailButton(cta)}</td></tr>
+    </table>`;
+}
 
-  return { text: textLines.join("\n"), html };
+function buildContentHtml(options: TransactionalEmailOptions): string {
+  const { heading, greeting, paragraphs, details = [], cta, closingNote, badge } = options;
+  const styles = buildContentTextStyles();
+
+  const paragraphsHtml = paragraphs.map((p) => `<p style="${styles.paragraph}">${escapeHtml(p)}</p>`).join("");
+  const infoCardHtml = details.length
+    ? `<div style="margin:8px 0 24px;">${renderInfoCard({ rows: details, badge })}</div>`
+    : "";
+  const buttonHtml = buildButtonHtml(cta);
+  const closingHtml = closingNote ? `<p style="${styles.closing}">${escapeHtml(closingNote)}</p>` : "";
+
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td class="docpulse-email-content-padding" style="padding:36px 36px 8px;">
+          <h1 style="${styles.heading}">${escapeHtml(heading)}</h1>
+          <p style="${styles.greeting}">${escapeHtml(greeting)}</p>
+          ${paragraphsHtml}
+          ${infoCardHtml}
+          ${buttonHtml}
+          ${closingHtml}
+        </td>
+      </tr>
+    </table>`;
+}
+
+export function renderTransactionalEmail(
+  options: TransactionalEmailOptions,
+): { text: string; html: string } {
+  const preheaderText = options.preheader ?? options.paragraphs[0] ?? options.greeting;
+  const bodyHtml = [renderEmailHeader(), buildContentHtml(options), renderEmailFooter()].join("");
+  const html = renderEmailShell({ bodyHtml, preheaderText });
+
+  return { text: buildTextBody(options), html };
 }

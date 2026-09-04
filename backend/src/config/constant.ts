@@ -55,9 +55,16 @@ const constant = {
   RATE_LIMIT_INVITATION:
     "Too many invitation requests, please try again later.",
 
+  RATE_LIMIT_PATIENT_SELF_REGISTRATION:
+    "Too many registration requests, please try again later.",
+
   // Validation messages
   VALIDATION_ERROR:
     "Validation Error",
+
+  // Patient self-registration
+  SELF_REGISTRATION_LINK_SENT:
+    "If this email is eligible for registration, you'll receive a verification link shortly.",
 
   // Admin messages
   INVITATION_SENT:
@@ -144,6 +151,17 @@ const constant = {
   APPOINTMENT_NOT_YET_STARTED: "Cannot mark an appointment as completed before its scheduled time has started",
   CANNOT_CANCEL_PAST_APPOINTMENT: "Cannot cancel an appointment whose scheduled time has already passed",
   APPOINTMENT_STATUS_CONFLICT: "This appointment was already updated by another request. Please refresh and try again.",
+
+  // Booking-abuse limits
+  MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR: 2,
+  MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR_EXCEEDED:
+    "You already have the maximum number of active appointments with this doctor. " +
+    "Please wait for an existing request to be resolved before booking another.",
+  MAX_ACTIVE_APPOINTMENTS_TOTAL: 5,
+  MAX_ACTIVE_APPOINTMENTS_TOTAL_EXCEEDED:
+    "You already have the maximum number of active appointments across all doctors. " +
+    "Please wait for an existing request to be resolved before booking another.",
+  STALE_PENDING_APPOINTMENT_HOURS: 48,
 
   // Bulk invitation limits
   MAX_BULK_INVITE_ROWS: 500,

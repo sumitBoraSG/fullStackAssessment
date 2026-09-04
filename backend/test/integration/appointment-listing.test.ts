@@ -1,9 +1,11 @@
+import { getConnection } from "typeorm";
 import { app, setupIntegrationTest } from "../util/testApp";
 import {
   createDoctorUser,
   createPatientUser,
   createAppointmentRow,
   loginAgent,
+  spyOnAppointmentEmails,
 } from "../util/factories";
 import { formatDateIST } from "@util/dateTimeRange";
 
@@ -260,5 +262,53 @@ describe("GET /doctor/appointments (doctor listing)", () => {
 
     const res = await agent.get("/doctor/appointments").query({ status: "NOT_A_STATUS" });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("Stale-PENDING expiry on listing", () => {
+  it("expires the patient's own stale PENDING appointments when they list their appointments", async () => {
+    const doctor = await createDoctorUser("doc-list-expire-patient@test.com", "Pass123456");
+    const patient = await createPatientUser("pat-list-expire@test.com", "Pass123456");
+
+    const staleId = await createAppointmentRow(
+      doctor.id,
+      patient.id,
+      "PENDING",
+      isoRange(HOUR, HOUR + 30 * 60 * 1000),
+      { createdAt: new Date(Date.now() - 49 * HOUR) },
+    );
+
+    const emails = spyOnAppointmentEmails();
+
+    const agent = await loginAgent(app, patient.email, patient.password);
+    const res = await agent.get("/appointments");
+    expect(res.status).toBe(200);
+
+    const [row] = await getConnection().query(`SELECT status FROM appointments WHERE id = $1`, [staleId]);
+    expect(row.status).toBe("REJECTED");
+    expect(emails.declined).toHaveBeenCalledWith(patient.email, staleId, expect.any(Object));
+  });
+
+  it("expires a doctor's own stale PENDING appointments when they list their appointments", async () => {
+    const doctor = await createDoctorUser("doc-list-expire-doctor@test.com", "Pass123456");
+    const patient = await createPatientUser("pat-list-expire-doctor@test.com", "Pass123456");
+
+    const staleId = await createAppointmentRow(
+      doctor.id,
+      patient.id,
+      "PENDING",
+      isoRange(HOUR, HOUR + 30 * 60 * 1000),
+      { createdAt: new Date(Date.now() - 49 * HOUR) },
+    );
+
+    const emails = spyOnAppointmentEmails();
+
+    const agent = await loginAgent(app, doctor.email, doctor.password);
+    const res = await agent.get("/doctor/appointments");
+    expect(res.status).toBe(200);
+
+    const [row] = await getConnection().query(`SELECT status FROM appointments WHERE id = $1`, [staleId]);
+    expect(row.status).toBe("REJECTED");
+    expect(emails.declined).toHaveBeenCalledWith(patient.email, staleId, expect.any(Object));
   });
 });

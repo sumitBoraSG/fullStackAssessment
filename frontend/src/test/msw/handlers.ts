@@ -71,6 +71,12 @@ export const authHandlers = [
       data: { id: 10, firstName: "New", lastName: "User", email: "invitee@test.com", role: "PATIENT" },
     }),
   ),
+  http.post(`${BASE}/auth/patient/self-register`, () =>
+    HttpResponse.json({
+      success: true,
+      message: "If this email is eligible for registration, you'll receive a verification link shortly.",
+    }),
+  ),
 ];
 
 export const adminHandlers = [

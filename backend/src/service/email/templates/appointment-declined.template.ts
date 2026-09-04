@@ -17,6 +17,7 @@ export function buildAppointmentDeclinedEmail(
       { label: "Date", value: details.date },
       { label: "Time", value: `${details.startTime} - ${details.endTime}` },
     ],
+    badge: { label: "Declined", tone: "declined" },
     cta: { label: "Find Another Doctor", url: `${FRONTEND_URL}/dashboard` },
     closingNote: "Please log in to DocPulse to book another appointment.",
   });

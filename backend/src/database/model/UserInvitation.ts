@@ -9,6 +9,7 @@ import {
 } from "typeorm";
 
 import { UserRole } from "../enum/userRole";
+import { InvitationSource } from "../enum/invitationSource";
 import { User } from "./User";
 
 @Entity("user_invitations")
@@ -53,14 +54,16 @@ export class UserInvitation {
   @Column({
     name: "created_by",
     type: "smallint",
+    nullable: true,
   })
-  createdBy: number;
+  createdBy: number | null;
 
   @Column({
     name: "updated_by",
     type: "smallint",
+    nullable: true,
   })
-  updatedBy: number;
+  updatedBy: number | null;
 
   @Column({
     name: "revoked_at",
@@ -68,6 +71,14 @@ export class UserInvitation {
     nullable: true,
   })
   revokedAt: Date | null;
+
+  @Column({
+    type: "enum",
+    enum: InvitationSource,
+    enumName: "invitation_source",
+    default: InvitationSource.ADMIN_INVITATION,
+  })
+  source: InvitationSource;
 
   @CreateDateColumn({
     name: "created_at",

@@ -3,6 +3,7 @@ import logger from "@core/logger";
 
 import { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD } from "@config/secret";
 
+import { InvitationSource } from "@database/enum/invitationSource";
 import { AppointmentEmailDetails, EmailContent } from "./types";
 import { buildInvitationEmail } from "./templates/invitation.template";
 import {
@@ -39,11 +40,12 @@ export class EmailService {
     email: string,
     role: string,
     invitationToken: string,
+    source: InvitationSource = InvitationSource.ADMIN_INVITATION,
   ): Promise<void> {
-    await this.deliver(email, buildInvitationEmail(role, invitationToken));
+    await this.deliver(email, buildInvitationEmail(role, invitationToken, source));
 
     logger.info("Invitation email sent successfully", {
-      data: { email, role },
+      data: { email, role, source },
     });
   }
 

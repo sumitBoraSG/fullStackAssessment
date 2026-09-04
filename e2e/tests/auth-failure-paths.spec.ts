@@ -71,7 +71,17 @@ test("forces a logout back to the login page when the session becomes invalid", 
   // screen — a faithful stand-in for real access+refresh token expiry
   // without waiting out their real (15m / 7d) lifetimes.
   await page.context().clearCookies();
-  await page.getByRole("button", { name: "My Appointments" }).click();
+  // force: true — clicking this tab mounts PatientAppointmentsList, whose
+  // fetch immediately 401s (cookies gone) and, via apiClient's failed-refresh
+  // path, tears the whole authenticated view down again within the same
+  // render cycle. Under load (full-suite run) that teardown can land inside
+  // Playwright's own multi-frame "stable" actionability check, which then
+  // waits out the full timeout for a button that has legitimately been
+  // replaced by the login page. force skips that stability wait (the button
+  // still has to exist and be visible at the moment of dispatch), which is
+  // all this assertion needs — the actual behavior under test is the
+  // post-click redirect to login on line below, not the click gesture itself.
+  await page.getByRole("button", { name: "My Appointments" }).click({ force: true });
 
   await expect(page.getByRole("heading", { name: "Welcome to DocPulse" })).toBeVisible({ timeout: 10_000 });
 });

@@ -33,16 +33,20 @@ export const DoctorAvailabilitySection: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  // Kept separate from the form's own errorMsg - a failure to load the
+  // existing schedule shouldn't be displayed as if the "Set Availability"
+  // form submission itself failed.
+  const [loadErrorMsg, setLoadErrorMsg] = useState<string | null>(null);
 
   const fetchAvailabilities = useCallback(async () => {
     setIsLoading(true);
-    setErrorMsg(null);
+    setLoadErrorMsg(null);
     const res = await getOwnDoctorAvailabilityApi();
     setIsLoading(false);
     if (res.success && res.data) {
       setAvailabilities(res.data);
     } else {
-      setErrorMsg(res.message || "Failed to load availability slots.");
+      setLoadErrorMsg(res.message || "Failed to load availability slots.");
     }
   }, []);
 
@@ -188,12 +192,13 @@ export const DoctorAvailabilitySection: React.FC = () => {
             <form onSubmit={handleAddAvailability} className="space-y-3.5" noValidate>
               {/* Date */}
               <div>
-                <label className="block text-xs font-medium text-[#141413] mb-1 flex items-center gap-1.5">
+                <label htmlFor="availability-date" className="block text-xs font-medium text-[#141413] mb-1 flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-[#141413]/60" />
                   <span>Date</span>
                   <span className="text-[#8E2A22]">*</span>
                 </label>
                 <input
+                  id="availability-date"
                   type="date"
                   min={getTodayString()}
                   value={date}
@@ -207,12 +212,13 @@ export const DoctorAvailabilitySection: React.FC = () => {
               <div className="grid grid-cols-2 gap-2.5">
                 {/* Start Time */}
                 <div>
-                  <label className="block text-xs font-medium text-[#141413] mb-1 flex items-center gap-1.5">
+                  <label htmlFor="availability-start" className="block text-xs font-medium text-[#141413] mb-1 flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-[#141413]/60" />
                     <span>Start Time</span>
                     <span className="text-[#8E2A22]">*</span>
                   </label>
                   <input
+                    id="availability-start"
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
@@ -223,12 +229,13 @@ export const DoctorAvailabilitySection: React.FC = () => {
 
                 {/* End Time */}
                 <div>
-                  <label className="block text-xs font-medium text-[#141413] mb-1 flex items-center gap-1.5">
+                  <label htmlFor="availability-end" className="block text-xs font-medium text-[#141413] mb-1 flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-[#141413]/60" />
                     <span>End Time</span>
                     <span className="text-[#8E2A22]">*</span>
                   </label>
                   <input
+                    id="availability-end"
                     type="time"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
@@ -273,6 +280,9 @@ export const DoctorAvailabilitySection: React.FC = () => {
             </h3>
           </div>
 
+          {/* Load Error */}
+          {loadErrorMsg && !isLoading && <Alert variant="error">{loadErrorMsg}</Alert>}
+
           {/* Loading Skeleton */}
           {isLoading && (
             <div className="space-y-3">
@@ -289,7 +299,7 @@ export const DoctorAvailabilitySection: React.FC = () => {
           )}
 
           {/* Empty State */}
-          {!isLoading && availabilities.length === 0 && (
+          {!isLoading && !loadErrorMsg && availabilities.length === 0 && (
             <EmptyState
               icon={Calendar}
               color="stone"

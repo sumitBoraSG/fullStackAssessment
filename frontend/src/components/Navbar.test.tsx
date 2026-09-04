@@ -51,13 +51,13 @@ describe("Navbar", () => {
     expect(window.location.pathname).toBe("/profile");
   });
 
-  it("clicking the brand navigates to /login when unauthenticated", async () => {
+  it("clicking the brand navigates to the landing page when unauthenticated", async () => {
     const user = userEvent.setup();
     renderNavbarAs(undefined, "/dashboard");
 
     await user.click(screen.getByText("DocPulse"));
 
-    expect(window.location.pathname).toBe("/login");
+    expect(window.location.pathname).toBe("/");
   });
 
   it("clicking the brand navigates admins to /admin and non-admins to /dashboard", async () => {

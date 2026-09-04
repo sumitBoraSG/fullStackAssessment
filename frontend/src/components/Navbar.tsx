@@ -43,7 +43,7 @@ export const Navbar: React.FC = () => {
 
   const handleBrandClick = () => {
     if (!isAuthenticated) {
-      navigate("/login");
+      navigate("/");
     } else if (user?.role === "ADMIN") {
       navigate("/admin");
     } else {

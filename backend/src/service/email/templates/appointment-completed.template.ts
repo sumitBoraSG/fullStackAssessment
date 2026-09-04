@@ -17,6 +17,7 @@ export function buildAppointmentCompletedEmail(
       { label: "Date", value: details.date },
       { label: "Time", value: `${details.startTime} - ${details.endTime}` },
     ],
+    badge: { label: "Completed", tone: "completed" },
     cta: { label: "View History", url: `${FRONTEND_URL}/dashboard` },
     closingNote:
       "Thank you for using DocPulse. Please log in to view your appointment history.",

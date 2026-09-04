@@ -17,6 +17,7 @@ export function buildAppointmentConfirmedEmail(
       { label: "Date", value: details.date },
       { label: "Time", value: `${details.startTime} - ${details.endTime}` },
     ],
+    badge: { label: "Confirmed", tone: "success" },
     cta: { label: "View Appointment", url: `${FRONTEND_URL}/dashboard` },
     closingNote: "Please log in to DocPulse to view the appointment details.",
   });
