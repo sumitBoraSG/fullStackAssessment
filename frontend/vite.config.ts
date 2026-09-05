@@ -2,6 +2,10 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+// Overridable so the proxy can point at a Docker service name (e.g.
+// "http://backend:3000") instead of localhost when running in a container.
+const backendTarget = process.env.VITE_BACKEND_URL || 'http://localhost:3000';
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -10,11 +14,14 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    allowedHosts: ['blooming-visiting-colony.ngrok-free.dev'],
     proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
+      '/auth': { target: backendTarget, changeOrigin: true },
+      '/admin': { target: backendTarget, changeOrigin: true },
+      '/doctor': { target: backendTarget, changeOrigin: true },
+      '/doctors': { target: backendTarget, changeOrigin: true },
+      '/patient': { target: backendTarget, changeOrigin: true },
+      '/appointments': { target: backendTarget, changeOrigin: true },
     },
   },
   test: {

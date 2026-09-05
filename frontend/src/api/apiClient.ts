@@ -1,6 +1,6 @@
 import type { RefreshTokenResponse } from "../types/auth";
 
-export const API_BASE_URL = "http://localhost:3000";
+export const API_BASE_URL = "";
 export const USER_KEY = "docpulse_user";
 const SESSION_EXPIRED_EVENT = "docpulse:session-expired";
 

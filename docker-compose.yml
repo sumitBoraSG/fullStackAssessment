@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: docpulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - docpulse-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - docpulse-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: dev/docker/Dockerfile
+    command: npm run watch
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://root:root@postgres:5432/docpulse
+      PORT: 3000
+    volumes:
+      - ./backend:/var/app/ts-bp-be
+      - /var/app/ts-bp-be/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - docpulse-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_BACKEND_URL: http://backend:3000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - docpulse-net
+
+networks:
+  docpulse-net:
+    driver: bridge
+
+volumes:
+  docpulse-postgres-data:

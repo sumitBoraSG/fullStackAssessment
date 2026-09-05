@@ -14,11 +14,11 @@ DocPulse is a doctor–patient appointment booking system. It lets a clinic (or 
 
 The system has exactly three roles, defined in `backend/src/database/enum/userRole.ts`:
 
-- **ADMIN** — invites new users (doctors, patients, or other admins) by email, manages the invitation list, can bulk-invite via CSV.
+- **ADMIN** — invites new doctor or other-admin users by email (patients can no longer be admin-invited — see below), manages the invitation list, can bulk-invite via CSV.
 - **DOCTOR** — completes signup with a specialization and years of experience, publishes availability windows, views/searches their own appointments, confirms/rejects/completes appointment requests, and can update their years-of-experience afterwards.
 - **PATIENT** — completes signup with date of birth/height/weight/blood group, searches for doctors, views a doctor's free slots, books an appointment, views/cancels their own appointments, and can update their height/weight afterwards.
 
-There is no self-registration: every account is created by accepting an admin-issued invitation (see [Section 10](#10-invitation-system)).
+Doctor and admin accounts are still created only by accepting an admin-issued invitation. This is a change from an earlier state of the repository, where the same was also true of patients: a prospective **patient** can now request their own signup link via `POST /auth/patient/self-register` (no admin action required), which — under the hood — creates the same kind of `user_invitations` row an admin-issued invite would, just tagged with a different `source` (see [Section 10](#10-invitation-system)). Consistent with this, `POST /admin/invite` and the bulk-invite CSV flow no longer accept `role: "PATIENT"` at all (see [Section 5](#5-admin-api--flow)) — an admin can still invite `ADMIN` or `DOCTOR` accounts, but a patient account can only originate from the self-registration flow.
 
 ### High-level architecture
 
@@ -69,7 +69,7 @@ The backend is a single Express application (no microservices, no queue/worker l
 | HTTP/API communication | Native `fetch`, wrapped in `frontend/src/api/apiClient.ts` | A single `apiFetch()` helper attaches `credentials: "include"` (so cookies are sent), and transparently retries a request once after a silent `/auth/refresh` call if the server returns 401. |
 | Linting | **oxlint** | Frontend lint script (`npm run lint`). |
 
-There is still no client-side test runner configured in `frontend/package.json` (no Jest/Vitest/RTL/Playwright dependency or script present).
+This is a change from an earlier state of the repository, where no client-side test runner was configured at all: `frontend/package.json` now has `test`/`test:watch`/`test:coverage` scripts running **Vitest** (`vitest run`, `^4.1.11`), with **`@testing-library/react`**, **`@testing-library/user-event`**, and **`@testing-library/jest-dom`** for component tests (jsdom environment, configured in `vite.config.ts`'s `test` block with `setupFiles: ['./src/test/setupTests.ts']`), and **`msw`** (Mock Service Worker) providing request-level API mocks via `frontend/src/test/msw/{handlers,server}.ts`. Roughly 30 `*.test.ts(x)` files exist under `frontend/src`, covering pages, shared UI components, contexts, and API-wrapper modules — see [Section 18 — Testing](#18-testing).
 
 ### Backend (`backend/`)
 
@@ -92,7 +92,8 @@ There is still no client-side test runner configured in `frontend/package.json` 
 | Request tracing | Custom `RequestIDMiddleware` (`uuid`) | Adds an `x-request-id` response header per request. |
 | Rate limiting | **express-rate-limit** (`^8.6.2`) | Three named limiters: `general`, `auth`, `invitation` (see [Section 4](#4-authentication-and-authorization)) — all bypassed automatically when `NODE_ENV=test`. |
 | Testing | **Jest** + **ts-jest** + **supertest** | A real integration + unit test suite now exists under `backend/test/` — see [Section 18](#18-testing). |
-| Other notable dependencies present but not central to the reviewed flows | `aws-sdk`, `axios`, `typedi`, `swagger-jsdoc`, `swagger-ui-express`, `express-handlebars`, `express-http-context`, `typeorm-pagination`, `moment-timezone` | Still present in `package.json` but **not found to be used** anywhere in `backend/src` (e.g. IST time handling uses `Intl.DateTimeFormat`, not `moment-timezone`; no Swagger route is registered in `api/route/index.ts`, and the `backend/swagger-doc/` directory exists but is empty). Treat as inherited/unused dependencies unless you find an active call site. |
+| API documentation | **`swagger-ui-express`**, a hand-written `openapi-types`-typed spec under `backend/src/docs/` (`openapi.ts`, `meta.ts`, `paths/*.paths.ts` per resource, `components/schemas/*.schema.ts`, `components/parameters/*.parameters.ts`, `components/responses/common.responses.ts`) | This is a change from an earlier state of the repository, where no Swagger route was registered at all. `Kernel.initSwagger` (`backend/src/core/kernel.ts`) is now called from `app.ts` and, when `NODE_ENV !== "production"`, mounts `GET /api-docs.json` (the raw `openApiSpec` object) and `GET /api-docs` (`swagger-ui-express`'s `serve`/`setup`, rendering the same spec as an interactive UI). It strips the `Content-Security-Policy` header helmet sets globally, but only on requests under `/api-docs`, so Swagger UI's inline bootstrap script isn't blocked elsewhere. `openapi.ts` merges per-resource path modules (`authPaths`, `adminPaths`, `doctorPaths`, `appointmentPaths`, `patientPaths`, `healthPaths`) and throws at module load (i.e. at server startup) if two modules ever declare the same path key. In production the route is not mounted at all — `initSwagger` returns immediately. `swagger-jsdoc` remains listed in `package.json` but is still not used anywhere (the spec above is hand-assembled TypeScript objects, not JSDoc-annotated comments), and the `backend/swagger-doc/` directory is still empty. |
+| Other notable dependencies present but not central to the reviewed flows | `aws-sdk`, `axios`, `typedi`, `swagger-jsdoc`, `express-handlebars`, `express-http-context`, `typeorm-pagination`, `moment-timezone` | Still present in `package.json` but **not found to be used** anywhere in `backend/src` (e.g. IST time handling uses `Intl.DateTimeFormat`, not `moment-timezone`). `swagger-ui-express` has moved out of this row — see the "API documentation" row above, since it is now genuinely wired up. Treat the rest as inherited/unused dependencies unless you find an active call site. |
 
 ### Database
 
@@ -117,18 +118,19 @@ Constraints declared on the entities:
 
 - `user_invitations`: a **partial unique index**, `idx_user_invitations_active_email ON user_invitations (email) WHERE used_at IS NULL AND revoked_at IS NULL` — see [Section 10](#10-invitation-system).
 
-**Migrations** — three migration files exist in `backend/src/database/migration/`, and together they provision the schema from an empty database (this is a change from an earlier state of the repository, where only an index-adding migration existed with no baseline):
+**Migrations** — four migration files exist in `backend/src/database/migration/`, and together they provision the schema from an empty database (this is a change from an earlier state of the repository, where only an index-adding migration existed with no baseline):
 
 1. `20260101000000-InitialSchema.ts` — the baseline. Creates the `btree_gist` extension (required to combine an equality column with a range column in a GIST exclusion constraint), the three enum types (`user_role`, `appointment_status`, `blood_group`), all seven tables with their foreign keys and exclusion constraints, and seeds four starter rows into `specializations`: *General Practitioner*, *Cardiology*, *Dermatology*, *Pediatrics*.
 2. `20260827120000-AddAppointmentQueryIndexes.ts` — adds `idx_appointments_patient_id_status` on `(patient_id, status)`, `idx_appointments_doctor_id_status` on `(doctor_id, status)`, and a GIST index `idx_appointments_appointment_time_gist` on `appointment_time`.
 3. `20260827130000-AddActiveInvitationUniqueIndex.ts` — adds the partial unique index above, to make duplicate-pending-invitation prevention race-proof at the database level (see [Section 10](#10-invitation-system)).
+4. `20260903000000-AddInvitationSourceAndNullableCreatedBy.ts` — supports patient self-registration ("Option B", per the migration's own comment): creates a new `invitation_source` enum type (`ADMIN_INVITATION`, `PATIENT_SELF_REGISTRATION`), adds a `user_invitations.source` column of that enum type (`NOT NULL DEFAULT 'ADMIN_INVITATION'`, so every pre-existing row is retroactively classified as admin-issued), and drops the `NOT NULL` constraint on both `user_invitations.created_by` and `user_invitations.updated_by` — a self-requested invitation has no inviting admin, so those columns must be able to hold `NULL`. Its `down()` migration, by the same acknowledged limitation as `InitialSchema.ts`'s `down()`, only reverses cleanly while every row still has a non-null `created_by`/`updated_by`, i.e. before the feature has actually been used.
 
 ### Infrastructure / configuration
 
 - **Environment variables** (from `backend/.env.example`; no values reproduced here beyond placeholders): `DATABASE_URL`, `TEST_DATABASE_URL`, `PORT`, `NODE_ENV`, `LOG_LEVEL`, `JWT_SECRET`, `REFRESH_TOKEN_SECRET`, `ACCESS_TOKEN_EXPIRES_IN`, `REFRESH_TOKEN_EXPIRES_IN`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `FRONTEND_URL`. `backend/src/config/secret.ts` now calls a `validateEnv()` function at import time that **throws at startup** if any of `DATABASE_URL`, `JWT_SECRET`, `REFRESH_TOKEN_SECRET`, or `FRONTEND_URL` is missing. This is a partial fix relative to an earlier state of the codebase: the four variables above now fail fast, but `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`, `PORT`, `ACCESS_TOKEN_EXPIRES_IN`/`REFRESH_TOKEN_EXPIRES_IN`, and `LOG_LEVEL` are still read unvalidated — a missing SMTP variable, for example, will still only surface when an email actually tries to send.
 - **Migrations**: run with `npm run migrate` (`typeorm migration:run`), reading `ormconfig.ts` at the backend root.
 - **Dev/build/start commands**: see [Section 17](#17-development-guide).
-- **Deployment assumptions**: `docker-compose.yml` in `backend/` defines a `ts-bp` app service (built from `dev/docker/Dockerfile`, which does exist in this repository at `backend/dev/docker/Dockerfile`) and a Postgres container (`ts-bp_postgres`), for local development only — there is no separate production deployment manifest (no Kubernetes/ECS config, no reverse-proxy config) in this repository. `app.ts` now calls `this.app.set("trust proxy", 1)` — the app trusts exactly one upstream proxy hop, which is what `express-rate-limit`'s `req.ip` detection and secure-cookie logic rely on when deployed behind a load balancer.
+- **Deployment assumptions**: `docker-compose.yml` in `backend/` defines a `ts-bp` app service (built from `dev/docker/Dockerfile`, which does exist in this repository at `backend/dev/docker/Dockerfile`) and a Postgres container (`ts-bp_postgres`), for local development only. A second, repository-root `docker-compose.yml` now also exists, orchestrating backend + frontend + Postgres together for full-stack local/team-preview use (see "Docker Compose (full stack)" in [Section 17](#17-development-guide)) — there is still no separate production deployment manifest (no Kubernetes/ECS config, no reverse-proxy config) in this repository. `app.ts` now calls `this.app.set("trust proxy", 1)` — the app trusts exactly one upstream proxy hop, which is what `express-rate-limit`'s `req.ip` detection and secure-cookie logic rely on when deployed behind a load balancer.
 
 ---
 
@@ -182,7 +184,10 @@ Errors thrown anywhere in a service (or a rejected promise anywhere, since `expr
 - `main.tsx` mounts `<App />` inside `<StrictMode>`.
 - `App.tsx` wraps everything in `RouterProvider` → `AuthProvider`, then does manual path-based branching (no route table/config) to decide which top-level page to show:
   - `/accept-invitation*` → `AcceptInvitationPage` (public, works regardless of auth state).
+  - A path starting with `/register` → `PatientSelfRegisterPage` (public) — the entry point for the patient self-registration flow described in [Section 10](#10-invitation-system). This route, and the marketing landing page below, did not exist in an earlier state of the repository.
+  - Not authenticated and `path === "/"` → `LandingPage`, a public marketing page (`frontend/src/components/landing/*`: `LandingHeader`, `HeroSection`, `WhatWeDoSection`, `ForPatientsSection`, `ForDoctorsSection`, `FeaturesSection`, `HowItWorksSection`, `FinalCtaSection`, `LandingFooter`) rendered outside the shared `Navbar`/footer chrome used by every other page. This is the unauthenticated home page; it has no API calls of its own.
   - Not authenticated (any other path) → `LoginPage`.
+  - An authenticated user who navigates to `/login`, `/register*`, or `/accept-invitation*` is redirected away (`/admin`-role → unchanged default, everyone else → `/dashboard`) by an effect in `AppContent`, so a stale bookmark or back-button visit to a sign-in-only page doesn't render a "create your account" form to someone already logged in.
   - Authenticated **ADMIN**: `/dashboard` → `DashboardPage`; `/profile` → `ProfilePage`; anything else (the default) → `AdminLayout` wrapping `AdminInvitationsPage`.
   - Authenticated **DOCTOR/PATIENT**: a path starting with `/admin` redirects to `/dashboard` with an error notification; `/profile` → `ProfilePage`; anything else (the default) → `DashboardPage`, which itself switches between sub-sections (`PatientDoctorDiscovery`/`PatientAppointmentsList` or `DoctorAppointmentsSection`/`DoctorAvailabilitySection`) via local tab state, not the router.
   - `/profile` is available to **every** authenticated role and is reachable from a "Profile" button in `Navbar.tsx` (all roles) and from the profile dropdown in `AdminLayout.tsx` (admin only).
@@ -254,13 +259,14 @@ Applied per-route, e.g.:
 
 ### Rate limiting
 
-Three `express-rate-limit` instances (`backend/src/middleware/rateLimiter.middleware.ts`), all windowed at 15 minutes, all keyed on the default `express-rate-limit` identity (derived from `req.ip`), and all automatically **skipped when `NODE_ENV === "test"`** (`skip: () => ENVIRONMENT === "test"`) so the integration test suite isn't throttled:
+Four `express-rate-limit` instances (`backend/src/middleware/rateLimiter.middleware.ts`), all windowed at 15 minutes, all keyed on the default `express-rate-limit` identity (derived from `req.ip`), and all automatically **skipped when `NODE_ENV === "test"`** (`skip: () => ENVIRONMENT === "test"`) so the integration test suite isn't throttled:
 
 | Limiter | Window | Max requests | Applied to |
 |---|---|---|---|
 | `general` | 15 min | **1000** | Most authenticated GET/PATCH/POST routes (availability, appointments, profiles, doctor discovery, invitation listing/revoke). |
 | `auth` | 15 min | **300** | `/auth/login`, `/auth/refresh`, `/auth/accept-invitation`, `/auth/invitation/:token`, `/auth/logout`. |
 | `invitation` | 15 min | **500** | `POST /admin/invite`, `POST /admin/invitations/bulk`. |
+| `patientSelfRegistration` | 15 min | **10** | `POST /auth/patient/self-register` only. This is a new, dedicated limiter (`backend/src/middleware/rateLimiter.middleware.ts`) — a change from an earlier state of the repository, where this route did not exist. Its ceiling is deliberately far tighter than `auth`'s, per an explicit code comment: this endpoint is the platform's first fully public, unauthenticated *write* endpoint that requires neither a credential nor a possessed token, so it needs a stricter budget than routes that already gate on one of those. |
 
 Because `app.set('trust proxy', 1)` is now called in `app.ts`, the limiter's `req.ip` resolution (and `secure`-cookie detection) correctly reflects the real client when the app sits behind exactly one reverse-proxy hop (its own load balancer). It would not correctly identify the client through more than one untrusted hop, but that is a deployment-topology concern outside this codebase.
 
@@ -274,7 +280,7 @@ All admin routes live under `/admin` (`backend/src/api/route/admin.routes.ts`), 
 
 - **Purpose**: invite a single user (any role) by email.
 - **Auth**: ADMIN. Rate limit: `invitation`.
-- **Body** (`inviteUserSchema`): `{ email: string (valid email, required), role: "ADMIN"|"DOCTOR"|"PATIENT" (required) }`.
+- **Body** (`inviteUserSchema`): `{ email: string (valid email, required), role: "ADMIN"|"DOCTOR" (required) }`. `"PATIENT"` is **no longer a valid value here** — this is a change from an earlier state of the repository, where an admin could invite any of the three roles; a code comment on the schema explains why: "patients self-register via `POST /auth/patient/self-register` instead of being admin-invited" (see [Section 10](#10-invitation-system)). Submitting `role: "PATIENT"` now fails Joi validation with a `400 validation_error` before it ever reaches `AdminService.inviteUser`.
 - **Flow** (`AdminService.inviteUser`):
   1. Trim/lowercase email.
   2. Reject if a non-deleted user with that email already exists → `409 USER_ALREADY_EXISTS`.
@@ -285,7 +291,7 @@ All admin routes live under `/admin` (`backend/src/api/route/admin.routes.ts`), 
   5. Send the invitation email (Nodemailer, via `EmailService.sendInvitationEmail`) containing a link `${FRONTEND_URL}/accept-invitation?token=<raw token>`. **If sending fails**, `AdminService.inviteUser` now catches the error, deletes the just-created invitation row (`invitationRepository.deleteInvitation`), and throws `500 FAILED_TO_SEND_INVITATION` — this is a compensating action, so (unlike an earlier version of this flow) a failed send no longer leaves an orphaned, never-emailed invitation row behind. There is still no automatic retry and no dedicated "resend" endpoint; the admin's only recourse is to invite the same email again.
   6. Returns `{ id, email, role, expiresAt }`.
 - **Response**: `201` `{ success: true, message: "Invitation sent successfully", data: { id, email, role, expiresAt } }`.
-- **Note on scope**: this endpoint (and the frontend's "Invite New User" modal) lets an admin issue an invitation for **any** of the three roles, including `ADMIN` — there is no restriction preventing an admin from inviting another admin.
+- **Note on scope**: this endpoint (and the frontend's "Invite New User" modal) lets an admin issue an invitation for `ADMIN` or `DOCTOR` — there is no restriction preventing an admin from inviting another admin. `PATIENT` is excluded (see above).
 
 ### `GET /admin/invitations`
 
@@ -307,10 +313,10 @@ All admin routes live under `/admin` (`backend/src/api/route/admin.routes.ts`), 
 
 - **Purpose**: invite many users at once from a CSV upload.
 - **Auth**: ADMIN. Rate limit: `invitation` (shared budget with single invites). Body: `multipart/form-data`, field `file`.
-- **Upload constraints** (`multer`, `upload.middleware.ts`): in-memory storage, **5 MB max file size**, mimetype/extension must be `text/csv` or `.csv`. **There is still no limit on the number of rows** in the CSV — a large file (up to 5 MB) can still contain many thousands of rows.
+- **Upload constraints** (`multer`, `upload.middleware.ts`): in-memory storage, **5 MB max file size**, mimetype/extension must be `text/csv` or `.csv`. A row-count cap now also exists: `AdminController.bulkInviteUsers` rejects the whole request with `400 CSV_ROW_LIMIT_EXCEEDED` ("CSV file exceeds the maximum allowed number of rows (500)") if the parsed row count exceeds `constant.MAX_BULK_INVITE_ROWS` (`500`), checked immediately after parsing and before any row is processed. This is a change from an earlier state of the repository, where only the 5 MB file-size limit existed and a large file could still carry many thousands of rows.
 - **Flow**:
-  1. `AdminController.bulkInviteUsers` parses the CSV synchronously (`csv-parse/sync`, `columns: true`) into `{ email, role }[]`.
-  2. `AdminService.bulkInviteUsers` iterates rows **sequentially, in a single `for...of` loop, awaiting each one**. For each row: normalizes email/role, validates with `bulkInviteRowSchema`, rejects a row whose (normalized) email repeats **earlier in the same file** with `DUPLICATE_EMAIL_IN_FILE` (a check added since duplicate-invitation handling was hardened — it does not hit the database at all, just an in-memory `Set` of emails seen so far in this request), and otherwise processes the row through the exact same `inviteUser()` method as the single-invite endpoint — meaning **one SMTP send per valid row, one at a time, inside the same HTTP request**. There is still no batching, queueing, or background job; the request handler does not return until every row has been attempted.
+  1. `AdminController.bulkInviteUsers` parses the CSV synchronously (`csv-parse/sync`, `columns: true`) into `{ email, role }[]`, then applies the 500-row cap above.
+  2. `AdminService.bulkInviteUsers` iterates rows **sequentially, in a single `for...of` loop, awaiting each one**. For each row: normalizes email/role, validates with `bulkInviteRowSchema` (which, like `inviteUserSchema`, now only accepts `role: "ADMIN"|"DOCTOR"` — `PATIENT` rows fail validation, per the same self-registration-only rule described in [Section 5](#5-admin-api--flow) above and [Section 10](#10-invitation-system)), rejects a row whose (normalized) email repeats **earlier in the same file** with `DUPLICATE_EMAIL_IN_FILE` (a check added since duplicate-invitation handling was hardened — it does not hit the database at all, just an in-memory `Set` of emails seen so far in this request), and otherwise processes the row through the exact same `inviteUser()` method as the single-invite endpoint — meaning **one SMTP send per valid row, one at a time, inside the same HTTP request**. There is still no batching, queueing, or background job; the request handler does not return until every row has been attempted.
   3. Each row's outcome is collected into a `results[]` array with `status: "INVITED"|"FAILED"` and a `reason` on failure (validation error, `DUPLICATE_EMAIL_IN_FILE`, or whatever error `inviteUser` threw, e.g. `USER_ALREADY_EXISTS`/`INVITATION_ALREADY_SENT`).
 - **Response**: `200` `{ success: true, message: "Bulk invitation process completed", data: { total, successful, failed, results } }` — note this always returns `200` even if every row failed; the per-row status must be inspected in `data.results`.
 
@@ -344,7 +350,7 @@ Split across two route groups: `/doctor` (doctor-only actions, all `authorize(DO
 ### `GET /doctor/appointments` and `PATCH /doctor/appointments/:appointmentId/status`
 
 Documented together with the patient equivalents in [Section 8](#8-appointment-lifecycle), since the underlying service (`AppointmentService`) is shared. In short:
-- `GET /doctor/appointments` — paginated/filterable/sortable list of the doctor's own appointments (`AppointmentController.getDoctorAppointments` → `AppointmentService.getDoctorAppointments`, scoped to `doctorId = req.user.id`).
+- `GET /doctor/appointments` — paginated/filterable/sortable list of the doctor's own appointments (`AppointmentController.getDoctorAppointments` → `AppointmentService.getDoctorAppointments`, scoped to `doctorId = req.user.id`). Before running the actual listing query, `getDoctorAppointments` now calls `expireStalePendingForDoctor(doctorId)`, a lazy sweep that auto-rejects any of this doctor's own `PENDING` appointments older than `STALE_PENDING_APPOINTMENT_HOURS` (48h) — see [Section 8](#8-appointment-lifecycle) for the mechanics. This is a change from an earlier state of the repository, where a stale, never-answered request stayed `PENDING` indefinitely.
 - `PATCH /doctor/appointments/:appointmentId/status` — body `{ status: "CONFIRMED"|"REJECTED"|"COMPLETED" }` (`doctorAppointmentStatusBodySchema`); doctors cannot set `CANCELLED` through this endpoint.
 
 ### `GET /doctor/profile` and `PATCH /doctor/profile`
@@ -386,6 +392,7 @@ Documented together with the patient equivalents in [Section 8](#8-appointment-l
 - **Purpose**: the patient's own appointment list.
 - **Auth**: PATIENT. Rate limit: `general`.
 - **Query** (`getPatientAppointmentsQuerySchema`): `page`, `limit` (≤100), `status`, `date` **or** `dateFrom`/`dateTo` (mutually exclusive — supplying both `date` and a range → `400 INVALID_DATE_FILTER`), `doctorId`, `sortBy` (`appointmentTime`|`createdAt`|`updatedAt`), `order`.
+- **Flow**: `AppointmentService.getPatientAppointments` first calls `expireStalePendingForPatient(patientId)` — see [Section 8](#8-appointment-lifecycle) — before building and running the listing query, so a stale `PENDING` request from this patient is auto-rejected and reflected in the very response that lists it.
 - **Response**: `{ appointments: PatientAppointment[], pagination }`, where each appointment is formatted by `formatPatientAppointment` (status, date/startTime/endTime in IST, timestamps, and an embedded `doctor: { doctorId, firstName, lastName, specialization, experienceYears }` — no doctor email).
 
 ### `POST /appointments` — booking
@@ -399,10 +406,12 @@ Documented together with the patient equivalents in [Section 8](#8-appointment-l
   3. If `date` is today, reject if `startTime <= current IST time` → `400 APPOINTMENT_TIME_IN_PAST`.
   4. Confirm the doctor exists → `404 DOCTOR_NOT_FOUND`.
   5. Confirm the patient profile exists → `404 PATIENT_NOT_FOUND`.
-  6. Build the `[start,end)` range literal with the hardcoded `+05:30` offset, exactly as for availability.
-  7. **Availability check**: find a `doctor_availabilities` row for this doctor whose range **fully contains** (`@>`) the requested range (`findDoctorAvailabilityForAppointment`). If none → `409 DOCTOR_NOT_AVAILABLE`. This means the requested slot must fit entirely inside one published availability window — booking cannot span across two adjacent windows even if they're contiguous.
-  8. Insert the appointment with `status: PENDING`. If Postgres raises `23P01` (an exclusion-constraint conflict — this doctor or this patient already has an overlapping active appointment) → caught and re-thrown as `409 APPOINTMENT_TIME_UNAVAILABLE`. This is the actual, database-enforced defense against double-booking; the availability-containment check in step 7 only tells you the slot is nominally open, not that a race with another booking hasn't just filled it — the exclusion constraint is what makes double-booking impossible even under concurrent requests.
-  9. On success, sends the "appointment requested" notification emails (patient + doctor, best-effort — see [Section 9 — Email System](#email-system)).
+  6. Call `expireStalePendingForPatient(patientId)` (see [Section 8](#8-appointment-lifecycle)) so an old, never-answered request of this patient's own doesn't count against the caps in step 9 below. This is a change from an earlier state of the repository, where a stale `PENDING` row would sit indefinitely and could itself contribute to blocking a new booking.
+  7. Build the `[start,end)` range literal with the hardcoded `+05:30` offset, exactly as for availability.
+  8. **Availability check**: find a `doctor_availabilities` row for this doctor whose range **fully contains** (`@>`) the requested range (`findDoctorAvailabilityForAppointment`). If none → `409 DOCTOR_NOT_AVAILABLE`. This means the requested slot must fit entirely inside one published availability window — booking cannot span across two adjacent windows even if they're contiguous.
+  9. **Booking-abuse caps, enforced inside a single `getManager().transaction(...)` block**: the transaction first takes a Postgres advisory lock scoped to this patient (`pg_advisory_xact_lock(837412, patientId)`, via `AppointmentRepository.acquirePatientBookingLock` — released automatically on commit/rollback), which serializes every concurrent booking attempt by the same patient so two simultaneous requests can't jointly slip past the counts below (a plain count-then-insert has a TOCTOU race at the default `READ COMMITTED` isolation level, and there's no existing row to `SELECT ... FOR UPDATE` when the patient's count starts at zero). Holding that lock, the service then counts this patient's own currently-active (`PENDING`/`CONFIRMED`, not yet ended) appointments two ways: with this specific doctor (`countActiveAppointmentsForPatientAndDoctor`) and across all doctors (`countActiveAppointmentsForPatient`). If the per-doctor count is already at or above `constant.MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR` (**2**) → `409 MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR_EXCEEDED`. Otherwise, if the total count is already at or above `constant.MAX_ACTIVE_APPOINTMENTS_TOTAL` (**5**) → `409 MAX_ACTIVE_APPOINTMENTS_TOTAL_EXCEEDED`. This entire cap-checking mechanism does not exist in an earlier state of the repository, where a patient could hold an unbounded number of simultaneous `PENDING`/`CONFIRMED` appointments.
+  10. Still inside the same transaction, insert the appointment with `status: PENDING`. If Postgres raises `23P01` (an exclusion-constraint conflict — this doctor or this patient already has an overlapping active appointment) → caught and re-thrown as `409 APPOINTMENT_TIME_UNAVAILABLE`. This is the actual, database-enforced defense against double-booking; the availability-containment check in step 8 only tells you the slot is nominally open, not that a race with another booking hasn't just filled it — the exclusion constraint is what makes double-booking impossible even under concurrent requests. Note the caps in step 9 above are checked before this insert is attempted, so a patient at their cap gets the cap-specific `409` rather than reaching the exclusion-constraint path at all.
+  11. On success, sends the "appointment requested" notification emails (patient + doctor, best-effort — see [Section 9 — Email System](#email-system)).
 - **Response**: `201` `{ success: true, data: { id, status: "PENDING", date, startTime, endTime, createdAt, updatedAt, doctor: { doctorId, firstName, lastName, specialization, experienceYears } } }` — this now matches the same nested shape (`PatientAppointment`) that `GET /appointments` and the status-update endpoint return; an earlier version of this endpoint returned a flatter, differently-shaped object here, which no longer applies.
 
 ### `PATCH /appointments/:appointmentId/status` — cancellation
@@ -451,6 +460,7 @@ Defined in `backend/src/database/enum/AppointmentStatus.ts`: `PENDING`, `CONFIRM
 PENDING
  ├── CONFIRMED   (doctor only, via PATCH /doctor/appointments/:id/status)
  ├── REJECTED    (doctor only)
+ ├── REJECTED    (system, automatic — stale-pending auto-expiry, see below)
  └── CANCELLED   (patient only, via PATCH /appointments/:id/status)
 
 CONFIRMED
@@ -488,8 +498,26 @@ Any request outside this map → `400 INVALID_STATUS_TRANSITION`.
 | `CONFIRMED → COMPLETED` | Doctor (owner) | `PATCH /doctor/appointments/:id/status` |
 | `PENDING → CANCELLED` | Patient (owner) | `PATCH /appointments/:id/status` |
 | `CONFIRMED → CANCELLED` | Patient (owner) | `PATCH /appointments/:id/status` |
+| `PENDING → REJECTED` | System (automatic) | No endpoint — a side effect of `POST /appointments`, `GET /appointments`, and `GET /doctor/appointments` (see below) |
 
 An admin has no endpoint to change appointment status directly — nothing in `admin.routes.ts` touches appointments.
+
+### Stale-pending auto-expiry — a system-driven transition
+
+This is new functionality that does not exist in an earlier state of the repository. `AppointmentService` defines `STALE_PENDING_WINDOW_MS` as `constant.STALE_PENDING_APPOINTMENT_HOURS` (**48**) hours in milliseconds, and exposes two private helpers, `expireStalePendingForPatient(patientId)` and `expireStalePendingForDoctor(doctorId)`, each of which:
+1. Computes `cutoff = now - 48h`.
+2. Calls `AppointmentRepository.expireStalePendingAppointmentsForPatient`/`...ForDoctor`, which issues a single atomic `UPDATE appointments SET status = 'REJECTED' WHERE {patient_id|doctor_id} = :id AND status = 'PENDING' AND created_at < :cutoff RETURNING id` — no row lock is needed, because whichever concurrent sweep's `UPDATE` statement reaches a given row first "claims" it (its `status = 'PENDING'` predicate no longer matches for the other).
+3. For every id returned, loads the appointment (with its patient/user relations, via the new `findAppointmentsWithPatientByIds`) and re-uses the existing `notifyAppointmentStatusTransition(PENDING, REJECTED, appointment, doctorId)` path — the same one a doctor-initiated decline uses — so the patient receives the same "declined" email (`sendAppointmentDeclinedEmail`) they would if a doctor had rejected the request by hand. Each notification send is independently wrapped in try/catch-and-log, exactly as for every other appointment-lifecycle email (see [Section 9 — Email System](#email-system)), so one failing send never blocks the others or the expiry itself.
+
+These sweeps are **not** a background job or a cron/scheduled task — there is no such mechanism anywhere in this codebase. They run lazily, as a side effect, at the start of three call paths: `AppointmentService.createAppointment` (for the booking patient, before the booking-abuse caps are evaluated — see [Section 7](#7-patient-api--flow)), `AppointmentService.getPatientAppointments` (for the requesting patient, before the listing query — see [Section 7](#7-patient-api--flow)), and `AppointmentService.getDoctorAppointments` (for the requesting doctor, before the listing query — see [Section 6](#6-doctor-api--flow)). This means a stale `PENDING` row for a patient/doctor who never triggers one of those three calls again will keep showing as `PENDING` indefinitely — the expiry is opportunistic, not guaranteed to run within 48 hours of actually going stale. It is also never surfaced to the client as an error; the caller only observes the state change afterward (e.g. a newly-`REJECTED` row appearing in a subsequent list response).
+
+### Booking-abuse caps
+
+Also new relative to an earlier state of the repository: `POST /appointments` now caps how many simultaneously-active (`PENDING`/`CONFIRMED`, not yet ended) appointments a single patient may hold, enforced inside the same database transaction as the insert (see step 9 of the booking flow in [Section 7](#7-patient-api--flow)) —
+- at most `constant.MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR` (**2**) active appointments with any one doctor → otherwise `409 MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR_EXCEEDED`;
+- at most `constant.MAX_ACTIVE_APPOINTMENTS_TOTAL` (**5**) active appointments in total, across all doctors → otherwise `409 MAX_ACTIVE_APPOINTMENTS_TOTAL_EXCEEDED`.
+
+Both caps are counted only after that patient's own stale `PENDING` requests have just been auto-expired (see above), and both checks happen while holding a Postgres advisory lock scoped to the patient's id (`pg_advisory_xact_lock(837412, patientId)`), so two concurrent booking requests from the same patient cannot jointly land on the same doctor or total count and both slip under a cap that a serialized pair of requests would have caught.
 
 ### Concurrent status updates — now guarded with a compare-and-swap
 
@@ -542,19 +570,31 @@ For each availability window:
 
 ### Email System
 
-Email is sent by a single `EmailService` (`backend/src/service/email/email.service.ts`), instantiated in both `AdminService` and `AppointmentService`. It wraps one shared `nodemailer` transporter (`createTransport({ host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465, auth: { user: SMTP_USER, pass: SMTP_PASSWORD } })`, `from: SMTP_USER`) and exposes seven methods, each building its content from a dedicated template module under `backend/src/service/email/templates/` and rendering it through a shared `layout.template.ts` wrapper (`renderTransactionalEmail`, which produces branded HTML + a plain-text fallback, escapes interpolated values, and optionally renders a details table and/or a CTA button).
+Email is sent by a single `EmailService` (`backend/src/service/email/email.service.ts`), instantiated in both `AdminService` and `AppointmentService` (and, since patient self-registration was added, in `AuthService` as well — see [Section 10](#10-invitation-system)). It wraps one shared `nodemailer` transporter (`createTransport({ host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465, auth: { user: SMTP_USER, pass: SMTP_PASSWORD } })`, `from: SMTP_USER`) and exposes seven methods, each building its content from a dedicated template module under `backend/src/service/email/templates/`.
+
+**Template architecture — a change from an earlier state of the repository**, where `layout.template.ts` rendered each email as one large inline-styled HTML string. The templates now compose a small set of shared, reusable pieces under `backend/src/service/email/components/`:
+- `shell.ts` (`renderEmailShell`) — the outermost HTML document: doctype/head/meta tags, the Outlook/mso-specific style fixes and one mobile media query that genuinely can't be inlined, the page background, the centered `600px`-wide rounded card container, and a hidden inbox-preview "preheader" snippet (auto-derived from the email's own first paragraph, padded with zero-width-joiner characters to stop Gmail/Outlook from spilling real body text into the preview line).
+- `header.ts` (`renderEmailHeader`) — a small dark rounded-square monogram ("D") plus the "DocPulse" wordmark, built from table cells and a text glyph rather than an image (there is no logo asset file in the repository).
+- `footer.ts` (`renderEmailFooter`) — a divider followed by the brand name, tagline, and a copyright line with the current year.
+- `divider.ts` (`renderDivider`) — a single thin horizontal rule, reused by the footer and available to any template.
+- `button.ts` (`renderEmailButton`) — the CTA button, rendered as a table cell with a background color and inline-padded `<a>` tag (a "bulletproof-lite" pattern that renders correctly across Gmail/Apple Mail/Outlook.com/desktop Outlook without VML).
+- `infoCard.ts` (`renderInfoCard`) — a bordered, rounded box that renders the label/value detail rows (e.g. Date, Time, Role/Status) as stacked "uppercase micro-label above bold value" pairs, mirroring the site's own appointment-card UI convention, plus an optional colored status **badge** (`success`/`pending`/`cancelled`/`completed`/`declined` tones, defined in `backend/src/service/email/theme.ts`) — replacing what used to be a flat two-column table.
+
+`backend/src/service/email/theme.ts` centralizes the design tokens (brand name/tagline/monogram, font family, the page/surface/border/text colors, the five badge tone palettes, corner radii, and the `600`px content width) — translated from the live frontend's own CSS variables and status-badge palette so the emails read as an extension of the product rather than a generic template. `backend/src/service/email/utils.ts` provides the shared `escapeHtml`/`escapeAttribute` helpers and a preheader-text truncator.
+
+`layout.template.ts`'s `renderTransactionalEmail` remains the single entry point every template calls: it now composes `renderEmailHeader()` + the heading/greeting/paragraphs/info-card/button/closing-note content block + `renderEmailFooter()` into one `bodyHtml` string, hands that to `renderEmailShell()`, and still separately produces a plain-text fallback body from the same input data (so the plain-text version is unaffected by the HTML redesign, and existing template tests that assert on plain-text wording did not need to change). Every appointment-lifecycle template (`appointment-confirmed`/`declined`/`completed`/`cancelled`/`requested`) now also passes a `badge` (e.g. `{ label: "Confirmed", tone: "success" }`) reflecting that email's status, and `invitation.template.ts` (see [Section 10](#10-invitation-system)) branches its subject line, CTA label, and body copy on whether the invitation's `source` is `ADMIN_INVITATION` or `PATIENT_SELF_REGISTRATION`.
 
 | Method | Template | Recipient | Trigger |
 |---|---|---|---|
-| `sendInvitationEmail` | `invitation.template.ts` | The invitee (any role) | `AdminService.inviteUser`, after the invitation row is committed. |
+| `sendInvitationEmail` | `invitation.template.ts` | The invitee (any role for an admin invite; always a prospective patient for self-registration) | `AdminService.inviteUser`, after the invitation row is committed; also `AuthService.requestPatientSelfRegistration`, after a self-registration invitation row is committed — see [Section 10](#10-invitation-system). The method now takes a fourth, defaulted `source: InvitationSource` parameter (`ADMIN_INVITATION` by default) that the template uses to vary its subject/copy. |
 | `sendAppointmentRequestedPatientEmail` | `appointment-requested.template.ts` | Patient | `AppointmentService.createAppointment`, after the appointment is inserted (status `PENDING`). |
 | `sendAppointmentRequestedDoctorEmail` | `appointment-requested.template.ts` | Doctor (if their user record has an email) | Same trigger as above, sent alongside the patient email. |
 | `sendAppointmentConfirmedEmail` | `appointment-confirmed.template.ts` | Patient | `AppointmentService.updateAppointmentStatus`, on a `PENDING → CONFIRMED` transition. |
-| `sendAppointmentDeclinedEmail` | `appointment-declined.template.ts` | Patient | Same method, on a `PENDING → REJECTED` transition. |
+| `sendAppointmentDeclinedEmail` | `appointment-declined.template.ts` | Patient | Same method, on a doctor-initiated `PENDING → REJECTED` transition, **and** on the automatic system-driven `PENDING → REJECTED` stale-pending auto-expiry transition (see [Section 8](#8-appointment-lifecycle)) — both reuse the identical "declined" email with no wording distinguishing the two causes. |
 | `sendAppointmentCompletedEmail` | `appointment-completed.template.ts` | Patient | Same method, on a `CONFIRMED → COMPLETED` transition. |
 | `sendAppointmentCancelledEmail` | `appointment-cancelled.template.ts` | Doctor | `AppointmentService.cancelAppointment` (the patient-initiated cancellation flow) — there is only a doctor-facing cancellation template; nothing emails the patient back their own cancellation. |
 
-**Failure handling differs by trigger**: the invitation email (step 5 of [Section 5](#5-admin-api--flow)) is the one case where a send failure is **not** swallowed — it deletes the invitation row and surfaces a `500` to the admin. Every appointment-lifecycle email (requested/confirmed/declined/completed/cancelled), by contrast, is sent **after** the underlying database write (the appointment insert or status change) has already been committed, and each send is wrapped so that a failure is only logged (`logEmailFailure`) — it never rolls back the state change or fails the HTTP response. This is confirmed by `backend/test/integration/appointment.test.ts`'s "Appointment email notifications" suite, which explicitly asserts that a mocked email-send failure does not fail the underlying operation.
+**Failure handling differs by trigger, and now by caller**: the **admin-invitation** email (step 5 of [Section 5](#5-admin-api--flow)) is the one case where a send failure is surfaced to the caller — `AdminService.inviteUser` deletes the invitation row and throws a `500 FAILED_TO_SEND_INVITATION` back to the admin. The **patient self-registration** email (`AuthService.requestPatientSelfRegistration`, [Section 10](#10-invitation-system)) also deletes its just-created invitation row on a send failure, but — unlike the admin path — does **not** surface any error: the method simply returns, and the controller sends the same generic `200 SELF_REGISTRATION_LINK_SENT` response it would on any other silent no-op branch, consistent with that endpoint's enumeration-safety requirement (see [Section 10](#10-invitation-system)). Every appointment-lifecycle email (requested/confirmed/declined/completed/cancelled — including the stale-pending auto-expiry's reuse of the declined email, [Section 8](#8-appointment-lifecycle)), by contrast, is sent **after** the underlying database write (the appointment insert or status change) has already been committed, and each send is wrapped so that a failure is only logged (`logEmailFailure`) — it never rolls back the state change or fails the HTTP response. This is confirmed by `backend/test/integration/appointment.test.ts`'s "Appointment email notifications" suite, which explicitly asserts that a mocked email-send failure does not fail the underlying operation.
 
 `backend/test/unit/email-templates.test.ts` unit-tests every template directly (not through `EmailService`), asserting subject lines, that each template mentions the right party/details, and negative assertions (e.g. the confirmed-patient email must not contain "declined" wording; the completed email must not leak diagnosis/prescription/notes text).
 
@@ -562,7 +602,9 @@ Email is sent by a single `EmailService` (`backend/src/service/email/email.servi
 
 ## 10. Invitation System
 
-### Lifecycle
+Sequence diagrams tracing both flows below (admin-issued and patient self-registration) step by step, cross-checked against the integration and e2e suites, live in `docs/architecture/` (see in particular `04-admin-flows.md` and `07-cross-role-sequences.md`); this section is the prose+API reference, not a diagram.
+
+### Lifecycle (admin-issued invitation)
 
 ```
 Admin submits { email, role }
@@ -607,19 +649,70 @@ AuthService.acceptInvitation — runs inside a single DB transaction (getManager
    — all of the above commits or rolls back together
 ```
 
+### Patient self-registration ("Option B")
+
+New relative to an earlier state of the repository, where every account — including patients' — was created only by accepting an admin-issued invitation (see [Section 1](#1-project-overview)). A prospective patient can now request their own signup link, without any admin involvement:
+
+```
+Prospective patient submits { email }         POST /auth/patient/self-register
+   │  (public route, no auth cookie; rate-limited by a dedicated
+   │   `patientSelfRegistration` limiter — 10 requests / 15 min, see
+   │   Section 4 — tighter than every other limiter, since this is the
+   │   platform's first fully public, unauthenticated *write* endpoint)
+   ▼
+AuthController.requestPatientSelfRegistration
+   │  always responds 200 { success: true, message: SELF_REGISTRATION_LINK_SENT }
+   │  ("If this email is eligible for registration, you'll receive a
+   │  verification link shortly.") — regardless of which branch below runs
+   ▼
+AuthService.requestPatientSelfRegistration(email)
+   ├── trim/lowercase email
+   ├── if a live (non-deleted) user already has this email → log + return (no-op)
+   ├── if an active (not used/revoked) invitation already exists for this
+   │     email → log + return (no-op)
+   ├── generate a 32-byte random token; SHA-256 hash it; expiresAt = now + 24h
+   ├── insert { email, role: PATIENT, hashedToken, expiresAt,
+   │     createdBy: null, updatedBy: null, source: PATIENT_SELF_REGISTRATION }
+   │     via createSelfRegistrationInvitation — the same race-proofed,
+   │     retry-once-on-conflict pattern as AdminService.createInvitationRaceProof
+   │     (backed by the same idx_user_invitations_active_email partial unique
+   │     index), except an unresolvable conflict here resolves to a silent
+   │     no-op (returns null) rather than throwing, since there is nothing
+   │     for the controller to report back distinctly
+   └── send the invitation email (EmailService.sendInvitationEmail(email,
+         PATIENT, token, PATIENT_SELF_REGISTRATION)); on failure, delete the
+         invitation row and return silently (no 500 — see Section 9 —
+         Email System)
+   │
+   ▼
+From here on, identical to the admin-issued flow above: the emailed link
+opens AcceptInvitationPage, GET /auth/invitation/:token confirms role
+PATIENT, and POST /auth/accept-invitation creates the account exactly as
+described in "Lifecycle (admin-issued invitation)" — acceptInvitation has
+no branch on invitation.source at all.
+```
+
+**Why the response never differentiates ("enumeration-safety")**: `requestPatientSelfRegistration` deliberately resolves (returns) identically — silently, with no thrown error and no distinguishable return value — whether the email belongs to an existing account, already has an active invitation, or is genuinely new and about to be emailed. `AuthController.requestPatientSelfRegistration` has nothing to branch on as a result, so it always sends the same generic `200` message. This means the endpoint cannot be used to determine whether a given email address already has an account on the platform (an "account enumeration" concern for a fully public endpoint) — a property the admin-invitation flow does **not** have, since `POST /admin/invite` returns a distinguishable `409 USER_ALREADY_EXISTS`/`409 INVITATION_ALREADY_SENT` (that endpoint is only reachable by an already-authenticated admin, so enumeration by an anonymous caller isn't a concern there).
+
+**Role and source are never client-supplied**: the request body accepts only `{ email }` (`requestPatientSelfRegistrationSchema`) — `role` is hardcoded to `PATIENT` and `source` to `PATIENT_SELF_REGISTRATION` inside the service, exactly as the admin-issued flow always derives `role` from the invitation row rather than the client at acceptance time.
+
+**Admin invite and bulk-invite no longer accept `PATIENT`**: consistent with self-registration being the only path to a new patient account, `inviteUserSchema` and `bulkInviteRowSchema` were both narrowed to `"ADMIN"|"DOCTOR"` only (see [Section 5](#5-admin-api--flow)) — an admin can no longer invite a patient directly.
+
 ### Token security
+
+Applies identically to both invitation sources (admin-issued and self-registration):
 
 - The link contains a **raw, high-entropy token** (`crypto.randomBytes(32)` → 64 hex characters). Only its **SHA-256 hash** is ever persisted (`hashedToken`, unique) — the raw token cannot be recovered from the database.
 - Expiration is fixed at **24 hours** from creation, computed server-side, not configurable per invitation.
 
 ### Duplicate / concurrent-acceptance handling — current behavior
 
-- **Duplicate invitations**: `AdminService.inviteUser`'s fast-path check (an existing pending invitation for the same email) is backed, since the `AddActiveInvitationUniqueIndex` migration, by the partial unique index `idx_user_invitations_active_email ON user_invitations (email) WHERE used_at IS NULL AND revoked_at IS NULL`. Two admin requests issued at almost the same instant for the same email can no longer both succeed: the database itself rejects the second insert with a unique-violation, which `createInvitationRaceProof` catches and turns into either a retry (if the conflicting row had actually expired) or a `409 INVITATION_ALREADY_SENT`. This is a genuine fix relative to an earlier state of the codebase, where this was only an application-level check-then-insert with no backing constraint.
+- **Duplicate invitations**: `AdminService.inviteUser`'s fast-path check (an existing pending invitation for the same email) is backed, since the `AddActiveInvitationUniqueIndex` migration, by the partial unique index `idx_user_invitations_active_email ON user_invitations (email) WHERE used_at IS NULL AND revoked_at IS NULL`. Two admin requests issued at almost the same instant for the same email can no longer both succeed: the database itself rejects the second insert with a unique-violation, which `createInvitationRaceProof` catches and turns into either a retry (if the conflicting row had actually expired) or a `409 INVITATION_ALREADY_SENT`. This is a genuine fix relative to an earlier state of the codebase, where this was only an application-level check-then-insert with no backing constraint. `AuthService.createSelfRegistrationInvitation` uses the identical index-backed retry-once pattern for the self-registration path — the only behavioral difference is that an unresolvable conflict there resolves to a silent no-op rather than a thrown `409`, per the enumeration-safety requirement described above.
 - **Concurrent acceptance of the same invitation**: `acceptInvitation` now loads the invitation with `SELECT ... FOR UPDATE` inside a transaction (`InvitationRepository.findByHashedTokenForUpdate`). A second concurrent request for the same token blocks on that row lock until the first transaction commits (or rolls back), and then observes `usedAt` already set — so it is rejected as "already used" rather than racing to create a second account. This, together with the transaction wrapping described below, is a genuine fix relative to an earlier state of the codebase where no lock or transaction covered this window; `backend/test/integration/invitation.test.ts` includes a "concurrent accept-invitation race" test covering this.
 
 ### Transaction handling
 
-`AuthService.acceptInvitation` now runs its entire body — the invitation row lock, profile-field validation, `users` row creation, `patients`/`doctors` profile row creation, and marking the invitation used — inside a single `getManager().transaction(async (manager) => { ... })` block. If any step fails (e.g. profile validation throws, or a later insert fails), the whole transaction rolls back: no orphaned `users` row without a matching profile row, and no invitation incorrectly marked used. `backend/test/integration/invitation.test.ts` includes a test asserting rollback behavior when a later step in this flow fails.
+Also applies identically regardless of how the invitation being accepted originated. `AuthService.acceptInvitation` now runs its entire body — the invitation row lock, profile-field validation, `users` row creation, `patients`/`doctors` profile row creation, and marking the invitation used — inside a single `getManager().transaction(async (manager) => { ... })` block. If any step fails (e.g. profile validation throws, or a later insert fails), the whole transaction rolls back: no orphaned `users` row without a matching profile row, and no invitation incorrectly marked used. `backend/test/integration/invitation.test.ts` includes a test asserting rollback behavior when a later step in this flow fails.
 
 ### Doctor and patient profile data are now collected at signup
 
@@ -629,7 +722,7 @@ The password submitted at this step is also checked against a policy (`PASSWORD_
 
 ### Email failure handling
 
-If `EmailService.sendInvitationEmail` throws (SMTP error, bad credentials, etc.), `AdminService.inviteUser` now deletes the invitation row it had just inserted and throws `500 FAILED_TO_SEND_INVITATION` — see [Section 5](#5-admin-api--flow). There is still no automatic retry and no dedicated "resend" endpoint; re-inviting the same email is the only recourse once the failed row has been cleaned up.
+If `EmailService.sendInvitationEmail` throws (SMTP error, bad credentials, etc.) for an **admin-issued** invitation, `AdminService.inviteUser` deletes the invitation row it had just inserted and throws `500 FAILED_TO_SEND_INVITATION` — see [Section 5](#5-admin-api--flow). There is still no automatic retry and no dedicated "resend" endpoint; re-inviting the same email is the only recourse once the failed row has been cleaned up. The **self-registration** path also deletes the invitation row on the same failure, but resolves silently instead of surfacing an error — see "Patient self-registration" above and [Section 9 — Email System](#email-system).
 
 ---
 
@@ -698,10 +791,11 @@ All entities live in `backend/src/database/model/*.ts`; table names/columns are 
 - `hashed_token` (varchar 255, **unique**)
 - `expires_at` (timestamptz)
 - `used_at`, `revoked_at` (timestamptz, nullable)
-- `created_by`, `updated_by` (smallint, FK → `users.id`)
+- `created_by`, `updated_by` (smallint, FK → `users.id`, **nullable**) — this is a change from an earlier state of the repository, where both columns were `NOT NULL`; the `20260903000000-AddInvitationSourceAndNullableCreatedBy.ts` migration (see [Section 2](#2-technology-stack)) dropped that constraint, because a patient self-registration invitation (see [Section 10](#10-invitation-system)) has no inviting admin to record here — both columns are `null` for a self-registration row.
+- `source` (enum `invitation_source`: `ADMIN_INVITATION`|`PATIENT_SELF_REGISTRATION`, `NOT NULL DEFAULT 'ADMIN_INVITATION'`) — new column, added by the same migration, recording which of the two flows in [Section 10](#10-invitation-system) created this row. Every row that existed before the migration ran is retroactively classified as `ADMIN_INVITATION` by the column default.
 - `created_at`, `updated_at`
-- Status (`PENDING`/`USED`/`EXPIRED`/`REVOKED`) is **derived at read time**, not a stored column.
-- **Constraint**: partial unique index `idx_user_invitations_active_email ON (email) WHERE used_at IS NULL AND revoked_at IS NULL` — at most one *active* (not yet used or revoked) invitation can exist per email at a time; this does not prevent multiple *historical* (used/revoked) rows for the same email.
+- Status (`PENDING`/`USED`/`EXPIRED`/`REVOKED`) is **derived at read time**, not a stored column, and is independent of `source`.
+- **Constraint**: partial unique index `idx_user_invitations_active_email ON (email) WHERE used_at IS NULL AND revoked_at IS NULL` — at most one *active* (not yet used or revoked) invitation can exist per email at a time, regardless of `source`; this does not prevent multiple *historical* (used/revoked) rows for the same email.
 
 ### Entity-relationship summary
 
@@ -725,6 +819,7 @@ Response envelope note: most endpoints return `{ success, message?, data, ... }`
 |---|---|---|---|---|---|
 | POST | `/auth/login` | any | Log in, set access+refresh cookies | none (rate-limited) | `{ success, data: { user } }` |
 | POST | `/auth/refresh` | any (valid refresh cookie) | Issue a new access token cookie | refresh cookie | `{ success: true }` |
+| POST | `/auth/patient/self-register` | none | Request a patient self-registration link by email (always the same generic response — see [Section 10](#10-invitation-system)) | none (rate-limited, dedicated `patientSelfRegistration` limiter) | `{ success: true, message: SELF_REGISTRATION_LINK_SENT }` |
 | GET | `/auth/invitation/:token` | none | Preview an invitation's role (for the signup form) without consuming it | none (rate-limited) | `{ success, data: { role, email } }` |
 | POST | `/auth/accept-invitation` | none (has token) | Complete signup from an invitation, including role-specific profile fields | none (rate-limited) | `{ success, message, data: user }` |
 | POST | `/auth/logout` | any | Clear auth cookies | none | `{ success: true }` |
@@ -733,7 +828,7 @@ Response envelope note: most endpoints return `{ success, message?, data, ... }`
 
 | Method | Endpoint | Role | Purpose | Auth | Main Response |
 |---|---|---|---|---|---|
-| POST | `/admin/invite` | ADMIN | Invite one user by email+role | cookie + ADMIN | `{ success, data: invitation }` |
+| POST | `/admin/invite` | ADMIN | Invite one `ADMIN`/`DOCTOR` user by email+role (`PATIENT` is rejected — see [Section 10](#10-invitation-system)) | cookie + ADMIN | `{ success, data: invitation }` |
 | GET | `/admin/invitations` | ADMIN | Paginated/filterable invitation list | cookie + ADMIN | `{ success, data: [], pagination }` |
 | POST | `/admin/invitations/:id/revoke` | ADMIN | Revoke a pending invitation | cookie + ADMIN | `{ success, data: invitation }` |
 | POST | `/admin/invitations/bulk` | ADMIN | CSV bulk invite | cookie + ADMIN | `{ success, data: { total, successful, failed, results } }` |
@@ -782,11 +877,11 @@ Response envelope note: most endpoints return `{ success, message?, data, ... }`
 - **Global handler** (`backend/src/middleware/error.ts`): reads `error.status` (default `500`), `error.message` (default the i18n fallback `ERR10001`), `error.code` (default `"ERR10001"`), and responds via `ResponseParser` as `{ status: false, message, code, data: {} }`. **Note the field name is `status` (boolean) here, not `success`** — this differs from the `{ success, ... }` shape most controllers use directly, which is one of the two response envelope styles the frontend has to normalize (see [Section 12](#12-api-reference)).
 - **Validation errors**: `HttpRequestValidator` middleware runs Joi's `.validate()` against `body`/`query`/`params`; on failure it responds directly (not via `next(error)`) with `400`, `code: "validation_error"`, `message: "Validation Error"`, and `data` containing an array of `{ message, label }` per failing field.
 - **Specific status codes used across the app**:
-  - `400` — bad input / invalid state transition / conflicting filters / missing role-specific signup or profile fields (e.g. `SPECIALIZATION_ID_REQUIRED`, `EXPERIENCE_YEARS_REQUIRED`, `INVALID_SPECIALIZATION`, `DOB_REQUIRED`, `INVALID_DOB`, `HEIGHT_REQUIRED`, `WEIGHT_REQUIRED`, `BLOOD_GROUP_REQUIRED`, `INVALID_BLOOD_GROUP`).
+  - `400` — bad input / invalid state transition / conflicting filters / missing role-specific signup or profile fields (e.g. `SPECIALIZATION_ID_REQUIRED`, `EXPERIENCE_YEARS_REQUIRED`, `INVALID_SPECIALIZATION`, `DOB_REQUIRED`, `INVALID_DOB`, `HEIGHT_REQUIRED`, `WEIGHT_REQUIRED`, `BLOOD_GROUP_REQUIRED`, `INVALID_BLOOD_GROUP`) / a bulk-invite CSV exceeding the row cap (`CSV_ROW_LIMIT_EXCEEDED`, see [Section 5](#5-admin-api--flow)).
   - `401` — missing/invalid/expired JWT, invalid credentials, invalid/expired refresh token.
   - `403` — authenticated but wrong role.
   - `404` — resource not found or not owned by the caller (appointment/availability/doctor/patient/invitation lookups scoped by owner id return "not found" rather than "forbidden" when the id exists but belongs to someone else); also `DOCTOR_NOT_FOUND`/`PATIENT_NOT_FOUND` from the new profile endpoints.
-  - `409` — genuine conflicts: `AVAILABILITY_OVERLAP`, `APPOINTMENT_TIME_UNAVAILABLE`, `DOCTOR_NOT_AVAILABLE`, `APPOINTMENT_TIME_ALREADY_PASSED`, `APPOINTMENT_NOT_YET_STARTED`, `CANNOT_CANCEL_PAST_APPOINTMENT`, `APPOINTMENT_STATUS_CONFLICT` (lost a concurrent status-update race — see [Section 8](#8-appointment-lifecycle)), `USER_ALREADY_EXISTS`, `INVITATION_ALREADY_SENT`, `INVITATION_ALREADY_REVOKED`.
+  - `409` — genuine conflicts: `AVAILABILITY_OVERLAP`, `APPOINTMENT_TIME_UNAVAILABLE`, `DOCTOR_NOT_AVAILABLE`, `APPOINTMENT_TIME_ALREADY_PASSED`, `APPOINTMENT_NOT_YET_STARTED`, `CANNOT_CANCEL_PAST_APPOINTMENT`, `APPOINTMENT_STATUS_CONFLICT` (lost a concurrent status-update race — see [Section 8](#8-appointment-lifecycle)), `MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR_EXCEEDED`, `MAX_ACTIVE_APPOINTMENTS_TOTAL_EXCEEDED` (the booking-abuse caps — see [Section 8](#8-appointment-lifecycle)), `USER_ALREADY_EXISTS`, `INVITATION_ALREADY_SENT`, `INVITATION_ALREADY_REVOKED`.
   - `429` — rate limit exceeded (message text set per-limiter in `constant.ts`).
   - `500` — anything unhandled (e.g. an unexpected database error), and the deliberate `FAILED_TO_SEND_INVITATION` case when an invitation email fails to send.
 - **Database constraint errors**: Postgres exclusion-constraint violations surface to Node as an error with `code === "23P01"`; this is caught explicitly in `DoctorService.createAvailability` and `AppointmentService.createAppointment` and translated into a `409` with a specific message. A unique-constraint violation on the invitation table's partial unique index (`code === "23505"`) is likewise caught explicitly in `AdminService.createInvitationRaceProof`. Any *other* database error is not specifically caught anywhere in the services reviewed — it propagates up as a generic error and is handled by the fallback path of the global error middleware (effectively a `500`).
@@ -806,7 +901,9 @@ Response envelope note: most endpoints return `{ success, message?, data, ... }`
 - **Role-based authorization** on every non-public route via `AuthorizationMiddleware.authorize(...)`.
 - **IDOR protection**: every "get/act on my own X" repository method filters by the owner id (`doctorId`/`patientId`) in the same query as the lookup, not as a separate post-fetch check.
 - **Parameterized queries** throughout: all TypeORM `QueryBuilder` usage seen in this codebase uses named parameters (`:paramName`) rather than string concatenation.
-- **Rate limiting**: three tiers (`general`/`auth`/`invitation`) via `express-rate-limit`, automatically disabled in the test environment — see [Section 4](#4-authentication-and-authorization).
+- **Rate limiting**: four tiers (`general`/`auth`/`invitation`/`patientSelfRegistration`) via `express-rate-limit`, automatically disabled in the test environment — see [Section 4](#4-authentication-and-authorization).
+- **Enumeration-safe self-registration**: `POST /auth/patient/self-register` always returns the same generic `200` response regardless of whether the submitted email already has an account, already has a pending invitation, or is genuinely new — an anonymous caller cannot use it to probe which email addresses have accounts on the platform (see [Section 10](#10-invitation-system)).
+- **Booking-abuse caps and stale-request auto-expiry**: a patient is capped at 2 simultaneously-active appointments with any one doctor and 5 in total, enforced under a per-patient Postgres advisory lock to close a count-then-insert race; unanswered `PENDING` requests older than 48 hours are automatically rejected the next time the patient's or doctor's own appointments are queried or a new booking is attempted (see [Section 8](#8-appointment-lifecycle)).
 - **Soft deletion** on `users` (`deleted_at`), consistently checked (`deleted_at IS NULL`) in every login/lookup query that reads a user.
 - **Database-level constraints** as the actual source of truth for "no double booking", "no overlapping availability", and (now) "no duplicate active invitation per email" — GIST exclusion constraints and a partial unique index — rather than relying solely on an application-level check-then-insert.
 - **Transactional invitation acceptance**, with a row lock (`SELECT ... FOR UPDATE`) preventing a concurrent accept of the same token from creating two accounts (see [Section 10](#10-invitation-system)).
@@ -817,7 +914,7 @@ Response envelope note: most endpoints return `{ success, message?, data, ... }`
 ### What was not found in the codebase (still-open items)
 
 - **No refresh-token rotation or revocation list** — a refresh token remains valid for its full lifetime once issued; there is no server-side way to invalidate a single outstanding refresh token before it expires (logout only clears the cookie client-side). Unchanged from an earlier review of this code.
-- **No CSV row-count limit** on bulk invitations, only a 5 MB file-size limit, and rows are still processed strictly one at a time, in-request — see [Section 5](#5-admin-api--flow).
+- **CSV row-count is now capped** (`MAX_BULK_INVITE_ROWS = 500`, `400 CSV_ROW_LIMIT_EXCEEDED` beyond it — see [Section 5](#5-admin-api--flow)), but rows are still processed strictly one at a time, in-request, with no batching/queueing/background job — a full 500-row file still means up to 500 sequential SMTP sends inside a single HTTP request.
 - **Partial env-var validation** — SMTP credentials, `PORT`, `LOG_LEVEL`, and the token-expiry strings are still read without any startup check; a misconfigured SMTP variable, for example, still only surfaces when an email attempt fails at runtime.
 - **No dedicated "resend invitation" endpoint** — a failed invitation email requires re-inviting the same email from scratch (the failed row is now cleaned up automatically, but there's no direct retry).
 
@@ -836,6 +933,10 @@ Rules actually enforced by the current code (file references given so you can ve
 - A doctor's two availability windows can never overlap, regardless of appointment status (`DoctorAvailability` entity exclusion constraint).
 - A requested appointment slot must fit entirely inside one existing availability window — it cannot span two separate windows even if contiguous (`appointment.repository.ts::findDoctorAvailabilityForAppointment`, uses range containment `@>`).
 - A concurrent status change that races against another status change on the same appointment loses cleanly with a `409`, rather than silently overwriting (`appointment.repository.ts::updateAppointmentStatusByDoctor`/`ByPatient`, compare-and-swap on `status`).
+- A patient cannot hold more than 2 simultaneously-active (`PENDING`/`CONFIRMED`) appointments with the same doctor, nor more than 5 in total across all doctors — both counted and enforced inside one transaction, under a per-patient Postgres advisory lock, at the moment of booking (`appointment.service.ts::createAppointment`, `constant.MAX_ACTIVE_APPOINTMENTS_PER_DOCTOR`/`MAX_ACTIVE_APPOINTMENTS_TOTAL`).
+- A `PENDING` appointment a doctor has not responded to within 48 hours (`constant.STALE_PENDING_APPOINTMENT_HOURS`) is automatically transitioned to `REJECTED` — lazily, the next time that patient's or that doctor's own appointments are listed or a new booking is attempted, not on a fixed schedule (`appointment.service.ts::expireStalePendingForPatient`/`expireStalePendingForDoctor`).
+- A new patient account can only be created through patient self-registration (`POST /auth/patient/self-register` followed by `POST /auth/accept-invitation`); an admin can no longer create a `PATIENT`-role invitation through `POST /admin/invite` or the bulk-invite CSV flow (`inviteUser.validator.ts`/`bulkInvite.validation.ts`, both restricted to `ADMIN`/`DOCTOR`).
+- `POST /auth/patient/self-register` never reveals whether a submitted email already has an account or a pending invitation — it resolves identically (a generic `200`) in every case, by design (`auth.service.ts::requestPatientSelfRegistration`).
 - Invitation tokens are single-use in intent (`usedAt` set on acceptance) and expire 24 hours after creation; a revoked or expired or already-used invitation cannot be accepted (`auth.service.ts::acceptInvitation`).
 - A user (by email) cannot be invited if a live (non-deleted) account with that email already exists, or if a still-active (not used/revoked) invitation for that email already exists — the latter now backed by a database-level partial unique index, not just an application check (`admin.service.ts::inviteUser`/`createInvitationRaceProof`).
 - A doctor invitee must supply a valid, active `specializationId` and an `experienceYears` (0–80) at signup; a patient invitee must supply `dob`, `heightCm`, `weightKg`, and a valid `bloodGroup` at signup — none of these are optional or defaulted (`auth.service.ts::validateDoctorProfileData`/`validatePatientProfileData`).
@@ -855,33 +956,36 @@ Rules actually enforced by the current code (file references given so you can ve
 Doctor opens the emailed link `{FRONTEND_URL}/accept-invitation?token=...` → `AcceptInvitationPage` reads `token` from the URL, calls `GET /auth/invitation/:token` to learn the role, and (for a doctor invite) calls the now-public `GET /doctors/specializations` to populate a specialization dropdown → doctor fills first/last name, password, selects a specialization, and enters years of experience → `acceptInvitationApi` → `POST /auth/accept-invitation` → `AuthService.acceptInvitation` (inside a transaction) validates the token and the submitted specialization/experience, creates the `users` row, creates a `doctors` row with the real submitted values, marks the invitation used → frontend shows a success notification and redirects to `/login`.
 
 ### 3. Patient accepts invitation and completes signup
-Same link/flow as above, but for a patient invite: `AcceptInvitationPage` renders date-of-birth, height, weight, and blood-group fields instead of a specialization dropdown → `POST /auth/accept-invitation` → `AuthService.acceptInvitation` validates all four fields and creates the `patients` row with the submitted values.
+Same link/flow as above, but for a patient invite: `AcceptInvitationPage` renders date-of-birth, height, weight, and blood-group fields instead of a specialization dropdown → `POST /auth/accept-invitation` → `AuthService.acceptInvitation` validates all four fields and creates the `patients` row with the submitted values. This is now reachable only via the self-registration flow below — an admin can no longer create a `PATIENT`-role invitation.
 
-### 4. Doctor creates availability
+### 4. Patient self-registers
+New flow, absent from an earlier state of the repository. Prospective patient → the public `/register` route → `PatientSelfRegisterPage` ("Create Your Patient Account") → enters an email address → `requestPatientRegistrationApi` → `POST /auth/patient/self-register` → `AuthService.requestPatientSelfRegistration` creates a `PATIENT_SELF_REGISTRATION`-sourced invitation and emails the same kind of link an admin invite would, unless the email already has an account or an active invitation, in which case it silently no-ops → the page always shows the same "Check Your Inbox" confirmation regardless of which branch ran, so the response never reveals which case occurred. From here the flow rejoins step 3 above verbatim: the emailed link opens `AcceptInvitationPage`, which behaves identically regardless of the invitation's `source`.
+
+### 5. Doctor creates availability
 Doctor logs in → `DashboardPage` (role DOCTOR) → "My Availability" tab → `DoctorAvailabilitySection` form (date/start/end, `min={today}` on the date input) → `createDoctorAvailabilityApi` → `POST /doctor/availability` → validated, checked against past-date/time, inserted (409 on overlap) → list refetched via `GET /doctor/availability`.
 
-### 5. Doctor or patient updates their profile
+### 6. Doctor or patient updates their profile
 Any authenticated user → "Profile" (Navbar, or the admin profile dropdown) → `/profile` → `ProfilePage` fetches `GET /doctor/profile` or `GET /patient/profile` depending on role and renders `DoctorProfileForm`/`PatientProfileForm` (an ADMIN sees a "not applicable" message instead) → editing the allowed field(s) and saving calls `PATCH /doctor/profile` or `PATCH /patient/profile` → updated profile re-rendered on success.
 
-### 6. Patient searches for a doctor
+### 7. Patient searches for a doctor
 Patient logs in → `DashboardPage` (role PATIENT) → "Find & Book Doctors" tab (default) → `PatientDoctorDiscovery` loads specializations + doctor list on mount, refetches on any filter change (`search`/`specialization`/`date`) → `GET /doctors`.
 
-### 7. Patient views availability and books an appointment
-Patient clicks "Book Appointment" on a doctor card → `GET /doctors/:doctorId/availability` → busy-subtracted, now-clamped free slots returned, grouped by date in the modal (the modal resets its state for the newly opened doctor) → patient picks a date and a suggested 30-min slot (or a custom range) → client-side re-validation → `POST /appointments` → backend re-validates independently (past-check, doctor/patient existence, availability containment) → inserted as `PENDING` (409 on a race/overlap via the exclusion constraint) → both patient and doctor receive an "appointment requested" email (best-effort) → modal shows success, `onSuccess` switches the dashboard to "My Appointments".
+### 8. Patient views availability and books an appointment
+Patient clicks "Book Appointment" on a doctor card → `GET /doctors/:doctorId/availability` → busy-subtracted, now-clamped free slots returned, grouped by date in the modal (the modal resets its state for the newly opened doctor) → patient picks a date and a suggested 30-min slot (or a custom range) → client-side re-validation → `POST /appointments` → backend re-validates independently (past-check, doctor/patient existence, availability containment, and — new — the per-doctor/total active-appointment caps described in [Section 8](#8-appointment-lifecycle)) → inserted as `PENDING` (409 on a race/overlap via the exclusion constraint, or on a cap being exceeded) → both patient and doctor receive an "appointment requested" email (best-effort) → modal shows success, `onSuccess` switches the dashboard to "My Appointments".
 
-### 8. Doctor confirms/rejects the appointment
-Doctor → "Patient Appointments" tab → `DoctorAppointmentsSection` lists appointments (filter/sort/paginate) → for a `PENDING` row, "Confirm" or "Decline" opens a confirmation dialog → `PATCH /doctor/appointments/:id/status` with `CONFIRMED` or `REJECTED` → backend checks the transition is allowed, that the time hasn't passed, and applies the compare-and-swap update (409 if the status changed underneath it) → patient receives a confirmation or decline email (best-effort) → list refetched.
+### 9. Doctor confirms/rejects the appointment
+Doctor → "Patient Appointments" tab → `DoctorAppointmentsSection` lists appointments (filter/sort/paginate) → for a `PENDING` row, "Confirm" or "Decline" opens a confirmation dialog → `PATCH /doctor/appointments/:id/status` with `CONFIRMED` or `REJECTED` → backend checks the transition is allowed, that the time hasn't passed, and applies the compare-and-swap update (409 if the status changed underneath it) → patient receives a confirmation or decline email (best-effort) → list refetched. Separately, simply *loading* this list (`GET /doctor/appointments`) can itself flip an old, unanswered `PENDING` row to `REJECTED` before the list is even returned — see the stale-pending auto-expiry in [Section 8](#8-appointment-lifecycle).
 
-### 9. Doctor completes the appointment
+### 10. Doctor completes the appointment
 For a `CONFIRMED` row whose start time has arrived, "Complete Visit" → `PATCH .../status` with `COMPLETED` → backend checks the appointment has started → updated → patient receives a completion email (best-effort).
 
-### 10. Patient cancels an appointment
+### 11. Patient cancels an appointment
 "My Appointments" → for a cancellable row (status `PENDING`/`CONFIRMED` and not yet started), "Cancel Appointment" → confirmation dialog → `PATCH /appointments/:id/status` with `CANCELLED` → backend re-checks ownership, current status, and that the time hasn't passed → doctor receives a cancellation email (best-effort) → list refetched. Once cancelled, the appointment's time range no longer counts as "active," so it stops blocking that doctor's/patient's availability for other bookings.
 
-### 11. User refreshes an expired access token
+### 12. User refreshes an expired access token
 Any authenticated request returns `401` → `apiFetch` (unless `skipAuthRefresh`) calls `getRefreshedAccessToken()` (deduped across concurrent callers) → `POST /auth/refresh` reads the `refreshToken` cookie, verifies it, issues a new `accessToken` cookie → the original request is retried once. If the refresh call itself fails, the client calls `/auth/logout`, clears local storage, and dispatches `docpulse:session-expired`, which `AuthContext` picks up to clear `user` and fall back to the login screen.
 
-### 12. User logs out
+### 13. User logs out
 "Sign Out" (Navbar / AdminLayout / DashboardPage) → `logout()` in `AuthContext` → `POST /auth/logout` (clears both cookies server-side) → `clearAuthStorage()` removes cached `localStorage` keys → `user` set to `null` → app re-renders to the login page.
 
 ---
@@ -905,7 +1009,7 @@ cd backend
 npm install
 npm run watch     # concurrently runs `tsc -w` and nodemon against dist/server.js
 ```
-Production-style run: `npm run start` (`build-ts` then `serve`, i.e. `node dist/server.js`). Backend listens on `PORT` (falls back to `3001` if unset — the frontend's hardcoded `API_BASE_URL` in `apiClient.ts` is `http://localhost:3000`, so for local dev, `PORT=3000` in `.env` — which is what `.env.example` ships — keeps the two in sync; leaving `PORT` unset would not).
+Production-style run: `npm run start` (`build-ts` then `serve`, i.e. `node dist/server.js`). Backend listens on `PORT` (falls back to `3001` if unset). This is a change from an earlier state of the repository: `apiClient.ts`'s `API_BASE_URL` used to be hardcoded to `http://localhost:3000`, which broke as soon as the frontend was accessed from any origin other than the machine running the backend (e.g. through an ngrok tunnel, where a teammate's `localhost:3000` resolves to their own machine, not the tunnel host). `API_BASE_URL` is now `""` (a relative path), so every `apiFetch` call resolves against whatever origin served the page; in dev this relies on `frontend/vite.config.ts`'s `server.proxy` entries (`/auth`, `/admin`, `/doctor`, `/doctors`, `/patient`, `/appointments`, all forwarded to `backendTarget`) to reach the backend server-side, avoiding both CORS and cross-site-cookie issues since the browser only ever sees one origin. `backendTarget` defaults to `http://localhost:3000` (read from `process.env.VITE_BACKEND_URL` if set) — so for local dev, `PORT=3000` in `backend/.env` (the `.env.example` default) must still match this default, or `VITE_BACKEND_URL` must be set to override it (see "Docker Compose (full stack)" below, where it's set to `http://backend:3000`).
 
 ### Running the frontend
 ```
@@ -920,13 +1024,33 @@ npm run dev        # Vite dev server, default http://localhost:5173
 
 ### Development considerations
 - Path aliases (`@api`, `@config`, `@core`, `@database`, `@middleware`, `@service`, `@util`, …) are resolved via `module-alias`, registered once in `app.ts` (`import "module-alias/register"`) against the compiled `dist/` paths declared in `package.json`'s `_moduleAliases` — this only works after a build; running `ts-node` directly against `src/` without the equivalent `tsconfig-paths` setup would not resolve these.
-- `docker-compose.yml` in `backend/` spins up the app plus a Postgres container for local development, building from `dev/docker/Dockerfile` (confirmed present at `backend/dev/docker/Dockerfile`, alongside a separate top-level `backend/Dockerfile`).
+- `docker-compose.yml` in `backend/` spins up the app plus a Postgres container for local development, building from `dev/docker/Dockerfile` (confirmed present at `backend/dev/docker/Dockerfile`, alongside a separate top-level `backend/Dockerfile`). This file is scoped to the backend only — it does not build or run the frontend.
+
+### Docker Compose (full stack)
+
+A second, repository-root `docker-compose.yml` (distinct from the backend-only one above) now exists, orchestrating all three services needed to run the whole app in containers — intended for sharing a running instance with a team (e.g. behind an ngrok tunnel), not as a production deployment manifest:
+
+- **`postgres`** — `postgres:16-alpine`, credentials `root`/`root`, database `docpulse`, with a `pg_isready` healthcheck and a named volume (`docpulse-postgres-data`) for persistence.
+- **`backend`** — built from `backend/dev/docker/Dockerfile` (the same dev image the backend-only compose file uses), started with `npm run watch`. Reads `backend/.env` via `env_file` (so real secrets are never baked into the image — see the `.dockerignore` note below), with `DATABASE_URL` and `PORT` overridden in `environment:` to point at the `postgres` service (`postgresql://root:root@postgres:5432/docpulse`) rather than whatever `backend/.env` has configured for bare-metal local dev. `depends_on: postgres: condition: service_healthy` delays backend startup until Postgres is actually accepting connections. The backend source is bind-mounted (`./backend:/var/app/ts-bp-be`) for live-reload via `nodemon`/`tsc -w`, with an anonymous volume over `node_modules` so the container's own (Linux-compiled) `node_modules` isn't shadowed by the host's — this matters because `bcrypt` compiles native bindings, which are platform-specific.
+- **`frontend`** — built from a new `frontend/Dockerfile` (previously did not exist), a single-stage `node:20-alpine` image that runs `npm run dev -- --host 0.0.0.0` (the `--host` flag is required for the Vite dev server to be reachable from outside its container; it does not bind non-loopback interfaces by default). `VITE_BACKEND_URL=http://backend:3000` is set so `vite.config.ts`'s proxy resolves the backend by its Docker Compose service name rather than `localhost`, mirroring the fix described above. Source is bind-mounted the same way as the backend, with the same anonymous-volume-over-`node_modules` pattern.
+
+All three services share one bridge network (`docpulse-net`) so they can resolve each other by service name. Ports are published to the host unchanged from local dev: `5173` (frontend), `3000` (backend), `5432` (Postgres, for connecting a host-side DB client if needed).
+
+**Usage**:
+```
+docker compose up --build          # from the repository root
+docker compose exec backend npm run migrate   # first run only, once Postgres/backend are up
+```
+
+**`backend/.dockerignore`** was widened at the same time this compose file was added — it previously excluded only `node_modules`, which meant `backend/dev/docker/Dockerfile`'s `COPY . /var/app/ts-bp-be` would have copied the real `backend/.env` (containing `JWT_SECRET`, `SMTP_PASSWORD`, `DATABASE_URL`, etc.) directly into the built image layer, readable by anyone with access to that image regardless of the bind-mount used at runtime. It now also excludes `.env`, `.env.*` (re-allowing `.env.example`), `dist`, `coverage`, and log files. A corresponding `frontend/.dockerignore` (previously absent, since `frontend/Dockerfile` itself did not exist) excludes the same categories.
+
+This setup has not been build-tested end-to-end in this repository's environment, since Docker itself is not installed on the machine this was authored on — verify `docker compose up --build` succeeds, particularly that `bcrypt`'s native build step completes inside the Alpine image (if it fails, `backend/dev/docker/Dockerfile` would need `python3`, `make`, and `g++` added via `apk add --no-cache`), before relying on it.
 
 ---
 
 ## 18. Testing
 
-An automated test suite now exists under `backend/test/` (Jest + `ts-jest` + `supertest`), where an earlier version of this document found none.
+An automated test suite now exists under `backend/test/` (Jest + `ts-jest` + `supertest`), where an earlier version of this document found none. A frontend Vitest/React Testing Library suite and a root-level Playwright end-to-end suite also now exist (see "Frontend tests" and "End-to-end tests" below) — an earlier version of this document found neither.
 
 ### Architecture
 
@@ -937,17 +1061,31 @@ An automated test suite now exists under `backend/test/` (Jest + `ts-jest` + `su
 
 ### Coverage (by file)
 
-- `appointment.test.ts` — appointment correctness and concurrency (past-date rejection, cancellation rules, elapsed-availability exclusion, slot clamping, double-booking prevention via the exclusion constraint, the concurrent status-update compare-and-swap, response shape), plus a dedicated block asserting each appointment-lifecycle email fires (and that an email failure doesn't fail the underlying operation).
+- `appointment.test.ts` — appointment correctness and concurrency (past-date rejection, cancellation rules, elapsed-availability exclusion, slot clamping, double-booking prevention via the exclusion constraint, the concurrent status-update compare-and-swap, response shape), the booking-abuse caps (per-doctor and total active-appointment limits), and the stale-pending auto-expiry sweep (see [Section 8](#8-appointment-lifecycle)), plus a dedicated block asserting each appointment-lifecycle email fires (and that an email failure doesn't fail the underlying operation).
+- `appointment-listing.test.ts` — additional coverage of the doctor/patient appointment-listing endpoints' filter/sort/pagination behavior.
 - `auth.test.ts` — login/refresh token flow, and IDOR protection (a patient/doctor cannot read or act on another account's data).
-- `doctor.test.ts` — inactive specializations are excluded from the discovery list and rejected at signup.
+- `doctor.test.ts` and `doctor-availability-query.test.ts` — inactive specializations are excluded from the discovery list and rejected at signup, plus additional coverage of the doctor-availability query/free-slot endpoints.
+- `patient.test.ts` — additional patient-profile and patient-facing endpoint coverage.
+- `patient-self-register.test.ts` — the full self-registration flow: requesting a link, its enumeration-safe response for an existing account/pending invitation, email failure cleanup, and that the resulting invitation is accepted through the same `POST /auth/accept-invitation` path as an admin-issued one (see [Section 10](#10-invitation-system)).
 - `invitation.test.ts` — the full invite → accept-invitation → signup flow for both roles, rejection of a nonexistent specialization, rejection of missing role-specific fields, confirmation that a client-supplied role is ignored, transaction rollback on a mid-flow failure, and the concurrent-accept race.
+- `admin-bulk-invite.test.ts` and `admin-invitations.test.ts` — bulk CSV invite behavior (including the `PATIENT`-role rejection and the CSV row-count cap, [Section 5](#5-admin-api--flow)) and invitation listing/filtering.
 - `security.test.ts` — asserts standard Helmet security headers are present on API responses, including on the auth endpoints.
 - `backend/test/unit/email-templates.test.ts` — unit-tests every email template directly (see [Section 9 — Email System](#email-system)).
+- `backend/test/unit/rateLimiter.test.ts` — unit-tests the `RateLimitMiddleware` limiters directly, including the new `patientSelfRegistration` limiter's stricter ceiling (see [Section 4](#4-authentication-and-authorization)).
+
+### Frontend tests
+
+Also new relative to an earlier state of the repository (see [Section 2](#2-technology-stack)): roughly 30 **Vitest** + **React Testing Library** test files exist under `frontend/src`, exercising pages (`LoginPage`, `PatientSelfRegisterPage`, `AcceptInvitationPage`, `ProfilePage`, `DashboardPage`, `AdminInvitationsPage`), shared components (`AdminLayout`, `BulkInviteModal`, `AppointmentBookingModal`, `DoctorAppointmentsSection`, `DoctorAvailabilitySection`, `PatientAppointmentsList`, `PatientDoctorDiscovery`, `Navbar`, and UI-kit primitives like `Button`/`Modal`/`FormField`), the two contexts (`AuthContext`, `RouterContext`), and the API-wrapper modules (`authApi`, `adminApi`, `doctorApi`, `appointmentApi`, `profileApi`, `apiClient`) plus utility modules (`cn`, `istDateTime`, `passwordPolicy`). API calls in these tests are intercepted at the request level by **MSW** (`frontend/src/test/msw/handlers.ts`/`server.ts`), not by mocking `fetch`/`apiFetch` directly. Run via `npm run test` (`vitest run`) inside `frontend/`, or `npm run test:watch`/`npm run test:coverage` for watch mode/coverage.
+
+### End-to-end tests
+
+A `playwright.config.ts`-driven Playwright suite lives under the repository-root `e2e/` directory (a separate workspace from both `backend/` and `frontend/`, with its own `tsconfig.json`, `global-setup.ts`/`global-teardown.ts`, and `utils/{fixtures,db}.ts`), also not previously documented. `e2e/tests/*.spec.ts` covers, among other flows, `patient-self-register.spec.ts` (the new self-registration flow end-to-end), `patient-booking.spec.ts`/`patient-booking-conflict.spec.ts`, `doctor-confirms-appointment.spec.ts`/`doctor-rejects-appointment.spec.ts`/`doctor-completes-past-appointment.spec.ts`, `patient-cancels-appointment.spec.ts`, `doctor-onboarding.spec.ts`, `admin-bulk-invite.spec.ts`, `auth-failure-paths.spec.ts`, `profile-updates.spec.ts`, and a `smoke.spec.ts`. These run against the real backend and frontend (not mocked), driven by a real browser. The repository root's own `package.json` (`fullstack-project-root`) wires this up: `npm run test:e2e` (`playwright test --config=e2e/playwright.config.ts`), `test:e2e:ui` for the interactive UI mode, and `test:all` (`test:backend && test:frontend && test:e2e`) to run all three suites in sequence.
 
 ### Running tests
 
 - Backend: `npm run test` (`jest --detectOpenHandles --forceExit --runInBand --coverage`, `--verbose`) or `npm run watch-test` for watch mode. There are no separate `test:unit`/`test:integration` scripts — a single Jest run picks up everything under `backend/test/**/*.test.ts`. Coverage is collected but no `coverageThreshold` is enforced. Requires `TEST_DATABASE_URL` to point at a reachable, disposable Postgres database (see [Environment variables](#environment-variables-backend) above) — this is not started automatically by the test run itself; `docker-compose.yml`'s Postgres service is a general-purpose dev database, not a dedicated test one, so provisioning a second database (or reusing the same instance under a different database name) is a manual step.
-- Frontend: still no test runner configured (`frontend/package.json` has no test script and no Jest/Vitest/RTL/Playwright dependency).
+- Frontend: `npm run test` (`vitest run`) inside `frontend/` — see "Frontend tests" above.
+- End-to-end: `npm run test:e2e` from the repository root — see "End-to-end tests" above. Requires both the backend and frontend to be reachable (per `e2e/playwright.config.ts`/`e2e/env.ts`), which is a separate setup step from either the Jest or Vitest suites.
 
 ---
 
@@ -971,7 +1109,12 @@ Items previously flagged as gaps in an earlier version of this document, and the
 | `Specialization.isActive` not filtered by `getSpecializations()` | **Fixed** — now filtered consistently everywhere it's checked | [6](#6-doctor-api--flow), [11](#11-database-design) |
 | `AppointmentBookingModal` didn't reset state when reopened for a different doctor | **Fixed** — a `useEffect` now resets on `[isOpen, doctorDetails?.doctor.id]` | [7](#7-patient-api--flow) |
 | No automated backend test suite | **Fixed** — integration + unit suite under `backend/test/` | [18 — Testing](#18-testing) |
-| No CSV row-count limit for bulk invitations (only a 5 MB file-size limit); rows processed serially in-request | **Still open** | [5](#5-admin-api--flow) |
+| No automated frontend or end-to-end test suite | **Fixed** — a Vitest/React Testing Library suite under `frontend/src` and a root-level Playwright suite under `e2e/` | [2](#2-technology-stack), [18 — Testing](#18-testing) |
+| No CSV row-count limit for bulk invitations (only a 5 MB file-size limit); rows processed serially in-request | **Partially fixed** — a 500-row cap now exists (`400 CSV_ROW_LIMIT_EXCEEDED`); rows are still processed strictly one at a time, in-request | [5](#5-admin-api--flow), [14](#14-security) |
+| No Swagger/OpenAPI documentation wired up despite `swagger-ui-express`/`swagger-jsdoc` being installed | **Fixed** — a hand-assembled OpenAPI 3.0.3 spec under `backend/src/docs/` is now served at `GET /api-docs` (UI) and `GET /api-docs.json` (raw spec) outside production | [2](#2-technology-stack) |
+| No patient self-registration; every account (including patients') required an admin-issued invitation | **Fixed** — `POST /auth/patient/self-register` lets a patient request their own signup link; admin invite/bulk-invite no longer accept `role: "PATIENT"` at all | [1](#1-project-overview), [10](#10-invitation-system) |
+| A patient could hold an unbounded number of simultaneous `PENDING`/`CONFIRMED` appointments, and a never-answered request stayed `PENDING` forever | **Fixed** — per-doctor (2) and total (5) active-appointment caps at booking time, plus a lazy 48-hour stale-`PENDING`-to-`REJECTED` auto-expiry | [8](#8-appointment-lifecycle) |
+| Email templates were built as one large inline-styled HTML string per template | **Refactored** (not a behavior change) — templates now compose shared components (`shell`/`header`/`footer`/`button`/`divider`/`infoCard`) plus a shared `theme.ts`; plain-text output is unaffected | [9 — Email System](#email-system) |
 | No refresh-token rotation or server-side revocation list | **Still open** | [4](#4-authentication-and-authorization), [14](#14-security) |
 | An invitation email failure has no dedicated "resend" endpoint | **Still open** (though the orphaned-row side effect is now cleaned up automatically) | [5](#5-admin-api--flow), [10](#10-invitation-system) |
 | Availability "now" clamping truncates to the current second rather than rounding up to the next whole minute | **Still open** | [9](#9-availability-system) |
