@@ -8,7 +8,7 @@ Audience: a developer joining the project who needs to understand what exists to
 
 ## 1. Project Overview
 
-DocPulse is a doctor–patient appointment booking system. It lets a clinic (or single admin) onboard doctors and patients by invitation, lets doctors publish blocks of time they are available and maintain a profile, and lets patients search for doctors and book appointments inside those time blocks. It manages the resulting appointment through a small state machine (request → confirm/reject → complete, or cancel) and prevents a doctor or patient from being double-booked at the database level.
+DocPulse is a doctor–patient appointment booking system. It lets a clinic (or single admin) onboard doctors (and other admins) by invitation, while a prospective patient creates their own account via self-registration (see below); doctors publish blocks of time they are available and maintain a profile, and patients search for doctors and book appointments inside those time blocks. It manages the resulting appointment through a small state machine (request → confirm/reject → complete, or cancel) and prevents a doctor or patient from being double-booked at the database level.
 
 ### Roles
 
