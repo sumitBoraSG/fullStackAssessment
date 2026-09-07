@@ -130,6 +130,6 @@ Every non-2xx business/validation constant in `backend/src/config/constant.ts`, 
 | `general` | 1000 | Everything not listed below |
 | `auth` | 300 | All 6 `/auth/*` routes except self-register |
 | `invitation` | 500 | `/admin/invite`, `/admin/invitations/bulk` |
-| `patientSelfRegistration` | 10 | `/auth/patient/self-register` only |
+| `patientSelfRegistration` | 100 | `/auth/patient/self-register` only |
 
 All four are IP-keyed, disabled entirely when `NODE_ENV=test`, and return `429 {success:false, message:"<limiter message>"}` — bypassing every other response mechanism in the app.

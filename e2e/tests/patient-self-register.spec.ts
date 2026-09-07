@@ -27,7 +27,7 @@ test.beforeAll(async () => {
 });
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
 });
 
 test("navigates from the login page to self-registration and back", async ({ page }) => {

@@ -78,6 +78,7 @@ export class DoctorController {
             const page = req.query.page ? Number(req.query.page) : 1;
             const limit = req.query.limit ? Number(req.query.limit) : 10;
 
+            // returns a sorted list of doctors ordered by ascending order of their first name
             const result = await this.doctorService.getDoctors({
                 search,
                 specialization,

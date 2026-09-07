@@ -57,7 +57,7 @@ test("doctor confirms a pending appointment and the patient sees it become confi
     const patientPage = await patientContext.newPage();
 
     // --- Doctor logs in and confirms the pending request ---
-    await doctorPage.goto("/");
+    await doctorPage.goto("/login");
     await doctorPage.getByPlaceholder("name@example.com").fill(DOCTOR_EMAIL);
     await doctorPage.getByPlaceholder("••••••••").fill(DOCTOR_PASSWORD);
     await doctorPage.getByRole("button", { name: "Sign In" }).click();
@@ -79,7 +79,7 @@ test("doctor confirms a pending appointment and the patient sees it become confi
     await expect(statusBadge(doctorPage, "Confirmed")).toBeVisible();
 
     // --- Patient logs in (separate browser context) and sees CONFIRMED ---
-    await patientPage.goto("/");
+    await patientPage.goto("/login");
     await patientPage.getByPlaceholder("name@example.com").fill(PATIENT_EMAIL);
     await patientPage.getByPlaceholder("••••••••").fill(PATIENT_PASSWORD);
     await patientPage.getByRole("button", { name: "Sign In" }).click();

@@ -41,8 +41,8 @@ describe("RateLimitMiddleware.patientSelfRegistration", () => {
       },
     );
 
-    // Configured ceiling is 10 requests per 15-minute window per IP.
-    for (let i = 0; i < 10; i++) {
+    // Configured ceiling is 100 requests per 15-minute window per IP.
+    for (let i = 0; i < 100; i++) {
       const res = await request(app).post("/auth/patient/self-register").send({});
       expect(res.status).toBe(200);
     }

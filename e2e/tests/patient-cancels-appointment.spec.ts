@@ -57,7 +57,7 @@ test("patient cancels a confirmed appointment and the doctor sees it become canc
     const doctorPage = await doctorContext.newPage();
 
     // --- Patient logs in and cancels the confirmed appointment ---
-    await patientPage.goto("/");
+    await patientPage.goto("/login");
     await patientPage.getByPlaceholder("name@example.com").fill(PATIENT_EMAIL);
     await patientPage.getByPlaceholder("••••••••").fill(PATIENT_PASSWORD);
     await patientPage.getByRole("button", { name: "Sign In" }).click();
@@ -78,7 +78,7 @@ test("patient cancels a confirmed appointment and the doctor sees it become canc
     await expect(statusBadge(patientPage, "Cancelled")).toBeVisible();
 
     // --- Doctor logs in (separate browser context) and sees CANCELLED ---
-    await doctorPage.goto("/");
+    await doctorPage.goto("/login");
     await doctorPage.getByPlaceholder("name@example.com").fill(DOCTOR_EMAIL);
     await doctorPage.getByPlaceholder("••••••••").fill(DOCTOR_PASSWORD);
     await doctorPage.getByRole("button", { name: "Sign In" }).click();

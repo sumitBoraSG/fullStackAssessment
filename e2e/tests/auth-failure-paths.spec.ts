@@ -27,7 +27,7 @@ test.beforeAll(async () => {
 });
 
 test("shows an error toast for invalid login credentials", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByPlaceholder("name@example.com").fill(PATIENT_EMAIL);
   await page.getByPlaceholder("••••••••").fill("TotallyWrongPassword123!");
   await page.getByRole("button", { name: "Sign In" }).click();
@@ -57,7 +57,7 @@ test("rejects a garbage/nonexistent invitation link", async ({ page }) => {
 });
 
 test("forces a logout back to the login page when the session becomes invalid", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByPlaceholder("name@example.com").fill(PATIENT_EMAIL);
   await page.getByPlaceholder("••••••••").fill(PATIENT_PASSWORD);
   await page.getByRole("button", { name: "Sign In" }).click();

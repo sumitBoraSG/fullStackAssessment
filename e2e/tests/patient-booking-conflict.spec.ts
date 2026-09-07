@@ -49,7 +49,7 @@ test.beforeAll(async () => {
 });
 
 test("shows a real 409 conflict when the viewed slot is taken before the patient confirms", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByPlaceholder("name@example.com").fill(PATIENT_EMAIL);
   await page.getByPlaceholder("••••••••").fill(PATIENT_PASSWORD);
   await page.getByRole("button", { name: "Sign In" }).click();

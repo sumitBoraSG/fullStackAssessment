@@ -49,7 +49,7 @@ test.beforeAll(async () => {
 });
 
 test("doctor marks a past confirmed appointment as completed", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByPlaceholder("name@example.com").fill(DOCTOR_EMAIL);
   await page.getByPlaceholder("••••••••").fill(DOCTOR_PASSWORD);
   await page.getByRole("button", { name: "Sign In" }).click();

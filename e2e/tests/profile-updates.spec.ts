@@ -22,7 +22,7 @@ test.beforeAll(async () => {
 });
 
 test("doctor updates years of experience from the Profile page", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByPlaceholder("name@example.com").fill(DOCTOR_EMAIL);
   await page.getByPlaceholder("••••••••").fill(DOCTOR_PASSWORD);
   await page.getByRole("button", { name: "Sign In" }).click();
@@ -47,7 +47,7 @@ test("doctor updates years of experience from the Profile page", async ({ page }
 });
 
 test("doctor's out-of-range experience is rejected client-side without a server round-trip", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByPlaceholder("name@example.com").fill(DOCTOR_EMAIL);
   await page.getByPlaceholder("••••••••").fill(DOCTOR_PASSWORD);
   await page.getByRole("button", { name: "Sign In" }).click();
@@ -60,7 +60,7 @@ test("doctor's out-of-range experience is rejected client-side without a server 
 });
 
 test("patient updates height and weight from the Profile page", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByPlaceholder("name@example.com").fill(PATIENT_EMAIL);
   await page.getByPlaceholder("••••••••").fill(PATIENT_PASSWORD);
   await page.getByRole("button", { name: "Sign In" }).click();

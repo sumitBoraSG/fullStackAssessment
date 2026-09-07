@@ -15,6 +15,11 @@ module.exports = {
     testEnvironment: "node",
     testTimeout: 20000,
 
+    coveragePathIgnorePatterns: [
+        "/node_modules/",
+        "<rootDir>/src/database/migration/",
+    ],
+
     "moduleNameMapper": {
         "^@src/(.*)$": "<rootDir>/src/$1",
         "^@api/(.*)$": "<rootDir>/src/api/$1",

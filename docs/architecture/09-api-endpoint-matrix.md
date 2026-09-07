@@ -9,7 +9,7 @@ All 25 routes in the application (confirmed against `backend/src/api/route/index
 | Anyone | POST | `/auth/login` | `auth` | email/password shape · user exists · bcrypt match | `200 {success:true,data:{user}}` | `401` INVALID_CREDENTIALS · `429` |
 | Anyone (session) | POST | `/auth/refresh` | `auth` | `refreshToken` cookie present · JWT valid · `type=refresh` · user still exists | `200 {success:true}` | `401` INVALID_REFRESH_TOKEN / REFRESH_TOKEN_EXPIRED · `429` |
 | Anyone | POST | `/auth/accept-invitation` | `auth` | body shape · invitation not used/revoked/expired · role-specific profile fields valid | `201 {success:true,message,data:{id,firstName,lastName,email,role}}` | `400` (10+ variants, see doc 08) · `429` |
-| Anyone | POST | `/auth/patient/self-register` | `patientSelfRegistration` (10/15min) | email shape only | `200 {success:true,message}` **always** (enumeration-safe) | `429` · `500` (rare, infra only) |
+| Anyone | POST | `/auth/patient/self-register` | `patientSelfRegistration` (100/15min) | email shape only | `200 {success:true,message}` **always** (enumeration-safe) | `429` · `500` (rare, infra only) |
 | Anyone | GET | `/auth/invitation/:token` | `auth` | invitation not used/revoked/expired | `200 {success:true,data:{email,role}}` | `400` (4 variants) · `429` |
 | Anyone (session) | POST | `/auth/logout` | `auth` | none | `200 {success:true}` | `429` |
 

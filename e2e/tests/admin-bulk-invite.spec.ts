@@ -42,7 +42,7 @@ test.beforeAll(async () => {
 });
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByPlaceholder("name@example.com").fill(E2E_ADMIN.email);
   await page.getByPlaceholder("••••••••").fill(E2E_ADMIN.password);
   await page.getByRole("button", { name: "Sign In" }).click();

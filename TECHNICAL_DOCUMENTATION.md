@@ -1,8 +1,5 @@
 # DocPulse — Technical Documentation
 
-This document describes the system **as it is currently implemented** in this repository. It is derived entirely from the source code (routes, controllers, services, repositories, entities, migrations, middleware, frontend components and API clients) rather than from design intent. Where the implementation has a gap, inconsistency, or an unusual choice relative to typical best practice, this is called out explicitly rather than glossed over. Anything that could not be established from the code is stated as such — nothing here is invented.
-
-Audience: a developer joining the project who needs to understand what exists today before changing it.
 
 ---
 
@@ -266,7 +263,7 @@ Four `express-rate-limit` instances (`backend/src/middleware/rateLimiter.middlew
 | `general` | 15 min | **1000** | Most authenticated GET/PATCH/POST routes (availability, appointments, profiles, doctor discovery, invitation listing/revoke). |
 | `auth` | 15 min | **300** | `/auth/login`, `/auth/refresh`, `/auth/accept-invitation`, `/auth/invitation/:token`, `/auth/logout`. |
 | `invitation` | 15 min | **500** | `POST /admin/invite`, `POST /admin/invitations/bulk`. |
-| `patientSelfRegistration` | 15 min | **10** | `POST /auth/patient/self-register` only. This is a new, dedicated limiter (`backend/src/middleware/rateLimiter.middleware.ts`) — a change from an earlier state of the repository, where this route did not exist. Its ceiling is deliberately far tighter than `auth`'s, per an explicit code comment: this endpoint is the platform's first fully public, unauthenticated *write* endpoint that requires neither a credential nor a possessed token, so it needs a stricter budget than routes that already gate on one of those. |
+| `patientSelfRegistration` | 15 min | **100** | `POST /auth/patient/self-register` only. This is a new, dedicated limiter (`backend/src/middleware/rateLimiter.middleware.ts`) — a change from an earlier state of the repository, where this route did not exist. Its ceiling is deliberately tighter than `auth`'s, per an explicit code comment: this endpoint is the platform's first fully public, unauthenticated *write* endpoint that requires neither a credential nor a possessed token, so it needs a stricter budget than routes that already gate on one of those. |
 
 Because `app.set('trust proxy', 1)` is now called in `app.ts`, the limiter's `req.ip` resolution (and `secure`-cookie detection) correctly reflects the real client when the app sits behind exactly one reverse-proxy hop (its own load balancer). It would not correctly identify the client through more than one untrusted hop, but that is a deployment-topology concern outside this codebase.
 
@@ -656,7 +653,7 @@ New relative to an earlier state of the repository, where every account — incl
 ```
 Prospective patient submits { email }         POST /auth/patient/self-register
    │  (public route, no auth cookie; rate-limited by a dedicated
-   │   `patientSelfRegistration` limiter — 10 requests / 15 min, see
+   │   `patientSelfRegistration` limiter — 100 requests / 15 min, see
    │   Section 4 — tighter than every other limiter, since this is the
    │   platform's first fully public, unauthenticated *write* endpoint)
    ▼

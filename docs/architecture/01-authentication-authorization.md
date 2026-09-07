@@ -114,7 +114,7 @@ Enumeration-safe by design: **every** outcome except a genuine infrastructure fa
 
 ```mermaid
 flowchart TD
-    A(["CLIENT\nPOST /auth/patient/self-register\n{ email }"]) --> B{{"rate limit\n'patientSelfRegistration'\n10 / 15 min — the strictest limiter in the app"}}
+    A(["CLIENT\nPOST /auth/patient/self-register\n{ email }"]) --> B{{"rate limit\n'patientSelfRegistration'\n100 / 15 min — the strictest limiter in the app"}}
     B -->|"exceeded"| B1["429"]
     B -->|"ok"| C{{"validate body\nemail format required"}}
     C -->|"invalid"| C1["400 validation_error"]
@@ -278,4 +278,4 @@ All four `express-rate-limit` instances share a 15-minute window and are fully *
 | `general` | 1000 | Nearly everything except the four rows below |
 | `auth` | 300 | `/auth/login`, `/auth/refresh`, `/auth/accept-invitation`, `/auth/invitation/:token`, `/auth/logout` |
 | `invitation` | 500 | `/admin/invite`, `/admin/invitations/bulk` |
-| `patientSelfRegistration` | **10** | `/auth/patient/self-register` only — the strictest limiter in the app, on the one fully-public, unauthenticated write endpoint |
+| `patientSelfRegistration` | **100** | `/auth/patient/self-register` only — the strictest limiter in the app, on the one fully-public, unauthenticated write endpoint |
